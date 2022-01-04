@@ -26,6 +26,8 @@ if (global['Game'] !== undefined) {
     ERR_INVALID_TARGET: ERR_INVALID_TARGET,
     ERR_NOT_IN_RANGE: ERR_NOT_IN_RANGE,
     OK: OK,
+    rooms: Game.rooms,
+    creeps: Game.creeps,
   };
 } else {
   // The actual constants are wrong which is good because code should

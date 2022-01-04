@@ -164,9 +164,6 @@ class CreepGeneralWorker {
 
       if (job === null) {
         console.log('requesting new job');
-        // TODO:
-        // Might need to let job selector have function pointer to
-        // getFreeCapacity so it can check for various rtype.s
         job = this.room.request_job(this.creep)
 
         if (job === null) {

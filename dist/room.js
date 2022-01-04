@@ -11,6 +11,30 @@ class Room {
     this.room.memory.jobs = this.room.memory.jobs || [];
     this.jobs = this.room.memory.jobs;
     this.room.memory.jobs_uid = this.room.memory.jobs_uid || 0;
+    this.breq = [];
+  }
+
+  request_build_creep (ruid, body_unit, unit_min, unit_max, clazz, priority) {
+    if (!_.some(this.breq, breq => if (breq.ruid === ruid) {
+      breq.body_unit = body_unit;
+      breq.unit_min = unit_min;
+      breq.unit_max = unit_max;
+      breq.clazz = clazz;
+      breq.priority = priority;
+      return true;
+    } else { return false })) {
+      this.breq.push({
+        ruid: ruid,
+        body_unit: body_unit,
+        unit_min: unit_min,
+        unit_max: unit_max,
+        clazz: clazz,
+        priority: priority,
+      });
+    }
+  }
+
+  think_build_creep () {
   }
 
   add_creep (creep) {
@@ -29,13 +53,14 @@ class Room {
 
     if (this.creeps.length < 10 && this.spawns.length > 0) {
       console.log('trying to spawn creep');
-      this.spawns[0].spawnCreep(
-        [game.WORK, game.CARRY, game.MOVE, game.MOVE],
-        this.room.name + ':' + game.time(),
-        {
-          'c': 'gw',
-        }
-      );
+      //this.spawns[0].spawnCreep(
+      //  [game.WORK, game.CARRY, game.MOVE, game.MOVE],
+      //  this.room.name + ':' + game.time(),
+      //  {
+      //    'c': 'gw',
+      //  }
+      //);
+      //
     }
 
     console.log('creating jobs for room');
