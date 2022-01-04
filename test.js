@@ -1,15 +1,9 @@
 const test = require('ava');
 const main = require('./dist/main.js');
 const { Room } = require('./dist/room.js');
+const { CreepGeneralWorker } = require('./dist/creepgw.js');
 const game = require('./dist/game.js');
 const _ = game._;
-
-class GhostCreep {
-  constructor (name) {
-    this.name = name;
-    this.memory = memory;
-  }
-}
 
 class GhostStore {
   constructor () {
@@ -25,6 +19,7 @@ class GhostStore {
   }
 
   getFreeCapacity (rtype) {
+    rtype = rtype || game.RESOURCE_ENERGY;
     if (this.res[rtype] === undefined) {
       return 0;
     }
@@ -32,10 +27,28 @@ class GhostStore {
   }
 
   getUsedCapacity (rtype) {
+    rtype = rtype || game.RESOURCE_ENERGY;
     if (this.res[rtype] === undefined) {
       return 0;
     }
     return this.res[rtype].amount;
+  }
+}
+
+class GhostRoomPosition {
+  constructor (x, y, room_name) {
+    this.roomName = room_name;
+    this.x = x;
+    this.y = y;
+  }
+}
+
+class GhostCreep {
+  constructor (name, room) {
+    this.name = name;
+    this.memory = {};
+    this.store = new GhostStore();
+    this.pos = new GhostRoomPosition(0, 0, room.name);
   }
 }
 
@@ -126,11 +139,34 @@ test('Room:general3', t => {
 });
 
 test('Room:creep1', t => {
-  let c0 = new GhostCreep('E32N32:29392932');
-  c0.tick();
+  let room = new GhostRoom('E32N32');
+  let job = {
+      src: 'xmn2',
+      dst: 'sp32',
+      rtype: game.RESOURCE_ENERGY,
+      amount: 100,
+      juid: '3029302932:392232',
+  };
+  let mxjs1 = new GhostSource('mxjs1');
+  let xmn2 = new GhostSource('xmn2');
+  let sp32 = new GhostSpawn('sp32');
+  room.request_job = (free_cap) => job;
+  room.get_job_by_juid = (juid) => job;
+  let c0 = new GhostCreep('E32N32:29392932', room);
+  let g0 = new CreepGeneralWorker(room, c0);
+  let f = (id) => {
+    console.log('$id', id);
+    switch (id) {
+      case 'xmn2': return xmn2; 
+      case 'sp32': t.fail();
+      case 'mxjs1': t.fail();
+    }
+    t.fail();
+  };
+  game.setGetObjectByIdTrampoline(f);
+  g0.tick();
   t.pass();
-));
-
+});
 /*
 test('bar', async t => {
   // t.fail()
