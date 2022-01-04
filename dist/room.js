@@ -197,17 +197,30 @@ class Room {
   }
 
 
-  request_job (capacity) {
+  request_job (creep) {
     let jobs = _.filter(this.jobs, job => {
       let a = this.sum_net_amount_for_job(job);
       return a > 0;
     });
 
-    let job = _.sample(jobs);
+    const store = creep.store;
 
-    if (job === undefined) {
+    console.log('@@@', store.getUsedCapacity(game.RESOURCE_ENERGY));
+
+    let delivery_jobs = 
+      _.filter(jobs, job => store.getUsedCapacity(job.rtype) > 0);
+
+    let job;
+  
+    if (delivery_jobs.length > 0) {
+      console.log('handing out delivery job');
+      job = _.sample(delivery_jobs);
+    } else {
+      job = _.sample(jobs);
+    }
+
+    if (job === undefined)
       return null;
-    }   
  
     return {
       src: job.src,

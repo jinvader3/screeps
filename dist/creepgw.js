@@ -55,7 +55,7 @@ class CreepGeneralWorker {
 
     if (res == game.ERR_NOT_IN_RANGE) {
       let res2 = this.move_to(trgt);
-      if (res2 === OK) {
+      if (res2 === game.OK) {
         return res;
       }
       return res2;
@@ -102,9 +102,11 @@ class CreepGeneralWorker {
   }
 
   got_new_job (job, details) {
-    if (this.creep.store[job.rtype] > 0) {
+    if (this.creep.store.getUsedCapacity(job.rtype) > 0) {
+      console.log('going into delivery mode');
       this.set_mode('d');
     } else {
+      console.log('going into pickup mode');
       this.set_mode('p');
     }
   }
@@ -135,16 +137,17 @@ class CreepGeneralWorker {
 
   got_same_job (job, details) {
     let mode = this.get_mode();
+
     if (mode === 'p') {
       this.debug('pickup for job');
       let src = game.getObjectById(job.src);
-      if (this.take_resource_from(src, job.rtype, details.amount) === OK) {
+      if (this.take_resource_from(src, job.rtype, details.amount) === game.OK) {
         this.clear_job();
       }
     } else {
       this.debug('dropoff for job');
       let dst = game.getObjectById(job.dst);
-      if (this.put_resource_into(dst, job.rtype, details.amount) === OK) {
+      if (this.put_resource_into(dst, job.rtype, details.amount) === game.OK) {
         this.room.add_completed_amount_to_job(job, details.amount);
         this.clear_job();
       }
@@ -154,29 +157,36 @@ class CreepGeneralWorker {
   tick () {
     this.debug('creep gw tick');
 
-    let job_details = this.get_job_details();
-    let job = job_details ? this.room.get_job_by_juid(job_details.juid) : null;
-
-    if (job === null) {
-      // TODO:
-      // Might need to let job selector have function pointer to
-      // getFreeCapacity so it can check for various rtype.s
-      job = this.room.request_job(this.creep.store.getFreeCapacity())
+    for (let _ = 0; _ < 3; _++) {
+      console.log('fetching job info');
+      let job_details = this.get_job_details();
+      let job = job_details ? this.room.get_job_by_juid(job_details.juid) : null;
 
       if (job === null) {
-        this.debug('no job; no work');
-        return;
+        console.log('requesting new job');
+        // TODO:
+        // Might need to let job selector have function pointer to
+        // getFreeCapacity so it can check for various rtype.s
+        job = this.room.request_job(this.creep)
+
+        if (job === null) {
+          this.debug('no job; no work');
+          return;
+        }
+
+        this.debug('got new job');
+        this.set_job(job, this.creep.store.getFreeCapacity(job.rtype));
+        this.got_new_job(job, job_details);
+      } else {
+        this.debug('got same job');
       }
-
-      this.debug('got new job');
-      this.set_job(job, this.creep.store.getFreeCapacity(job.rtype));
-      this.got_new_job(job, job_details);
-    } else {
-      this.debug('got same job');
+      
+      job_details = this.get_job_details();
+      job = job_details ? this.room.get_job_by_juid(job_details.juid) : null;
       this.got_same_job(job, job_details);
-    }
 
-    console.log(this.creep.name, this.get_status());
+      console.log(this.creep.name, this.get_status());
+    }
   }
 }
 

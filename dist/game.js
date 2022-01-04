@@ -25,6 +25,7 @@ if (global['Game'] !== undefined) {
     getObjectById: Game.getObjectById,
     ERR_INVALID_TARGET: ERR_INVALID_TARGET,
     ERR_NOT_IN_RANGE: ERR_NOT_IN_RANGE,
+    OK: OK,
   };
 } else {
   // The actual constants are wrong which is good because code should
@@ -42,6 +43,7 @@ if (global['Game'] !== undefined) {
     FIND_SOURCES: 'find_sources',
     ERR_INVALID_TARGET: 'err_invalid_target',
     ERR_NOT_IN_RANGE: 'err_not_in_range',
+    OK: 'ok',
     getObjectById: getObjectByIdTrampoline,
     setGetObjectByIdTrampoline: setGetObjectByIdTrampoline,
   };
