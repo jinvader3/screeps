@@ -1,5 +1,7 @@
-const game = require('./game.js');
+const game = require('./game');
 _ = game._;
+const { CreepGeneralWorker } = require('./creepgw');
+const { CreepDummy } = require('./creepdummy');
 
 class Room {
   constructor (room) {
@@ -15,14 +17,18 @@ class Room {
   }
 
   request_build_creep (ruid, body_unit, unit_min, unit_max, clazz, priority) {
-    if (!_.some(this.breq, breq => if (breq.ruid === ruid) {
-      breq.body_unit = body_unit;
-      breq.unit_min = unit_min;
-      breq.unit_max = unit_max;
-      breq.clazz = clazz;
-      breq.priority = priority;
-      return true;
-    } else { return false })) {
+    if (!_.some(this.breq, breq => {
+      if (breq.ruid === ruid) {
+        breq.body_unit = body_unit;
+        breq.unit_min = unit_min;
+        breq.unit_max = unit_max;
+        breq.clazz = clazz;
+        breq.priority = priority;
+        return true;
+        } else { 
+          return false 
+        }
+    })) {
       this.breq.push({
         ruid: ruid,
         body_unit: body_unit,
@@ -53,14 +59,13 @@ class Room {
 
     if (this.creeps.length < 10 && this.spawns.length > 0) {
       console.log('trying to spawn creep');
-      //this.spawns[0].spawnCreep(
-      //  [game.WORK, game.CARRY, game.MOVE, game.MOVE],
-      //  this.room.name + ':' + game.time(),
-      //  {
-      //    'c': 'gw',
-      //  }
-      //);
-      //
+      this.spawns[0].spawnCreep(
+        [game.WORK, game.CARRY, game.MOVE, game.MOVE],
+        this.room.name + ':' + game.time(),
+        {
+          'c': 'gw',
+        }
+      );
     }
 
     console.log('creating jobs for room');
@@ -186,7 +191,12 @@ class Room {
   }
 
   sum_uncomitted_rtype_amount_for_src (src, rtype) {
-    let have = src.store.getUsedCapacity(rtype);
+    let have;
+    if (src.store !== undefined) {
+      have = src.store.getUsedCapacity(rtype);
+    } else {
+      have = src.energy;
+    }
     let jobs = _.filter(this.jobs, job => job.src === src.id);
     jobs = _.filter(jobs, job => job.rtype === rtype);
     let committed = _.sumBy(jobs, job => job.amount);
@@ -251,7 +261,7 @@ class Room {
       src: job.src,
       dst: job.dst,
       rtype: job.rtype,
-      amount: Math.min(capacity, job.amount),
+      amount: Math.min(creep.store.getCapacity(), job.amount),
       juid: job.juid,
     }
   }

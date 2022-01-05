@@ -12,6 +12,14 @@ function getObjectByIdTrampoline (arg) {
   return g_f_getObjectById(arg);
 }
 
+_.sumBy = (iterable, f) => {
+  let s = 0;
+  _.each(iterable, i => {
+    s += f(i);
+  });
+  return s;
+};
+
 if (global['Game'] !== undefined) {
   module.exports = {
     _: _,
@@ -22,12 +30,12 @@ if (global['Game'] !== undefined) {
     time: () => Game.time,
     FIND_MY_SPAWNS: FIND_MY_SPAWNS,
     FIND_SOURCES: FIND_SOURCES,
-    getObjectById: Game.getObjectById,
+    getObjectById: () => Game.getObjectById,
     ERR_INVALID_TARGET: ERR_INVALID_TARGET,
     ERR_NOT_IN_RANGE: ERR_NOT_IN_RANGE,
     OK: OK,
-    rooms: Game.rooms,
-    creeps: Game.creeps,
+    rooms: () => Game.rooms,
+    creeps: () => Game.creeps,
   };
 } else {
   // The actual constants are wrong which is good because code should
@@ -46,7 +54,7 @@ if (global['Game'] !== undefined) {
     ERR_INVALID_TARGET: 'err_invalid_target',
     ERR_NOT_IN_RANGE: 'err_not_in_range',
     OK: 'ok',
-    getObjectById: getObjectByIdTrampoline,
+    getObjectById: () => getObjectByIdTrampoline,
     setGetObjectByIdTrampoline: setGetObjectByIdTrampoline,
   };
 }

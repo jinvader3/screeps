@@ -1,8 +1,8 @@
 const test = require('ava');
-const main = require('./dist/main.js');
-const { Room } = require('./dist/room.js');
-const { CreepGeneralWorker } = require('./dist/creepgw.js');
-const game = require('./dist/game.js');
+const main = require('./main');
+const { Room } = require('./room');
+const { CreepGeneralWorker } = require('./creepgw');
+const game = require('./game');
 const _ = game._;
 
 class GhostStore {

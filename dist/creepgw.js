@@ -1,4 +1,4 @@
-const game = require('./game.js');
+const game = require('./game');
 const _ = game._;
 
 class CreepGeneralWorker {
@@ -43,7 +43,7 @@ class CreepGeneralWorker {
   }
 
   get_target (trgt) {
-    return game.getObjectById(this.creep.memory.t);
+    return game.getObjectById()(this.creep.memory.t);
   }
 
   take_resource_from (trgt, restype, amount) {
@@ -65,7 +65,7 @@ class CreepGeneralWorker {
   }
 
   move_to (trgt) {
-    this.creep.moveTo(trgt);
+    return this.creep.moveTo(trgt);
   }
 
   debug () {
@@ -87,7 +87,6 @@ class CreepGeneralWorker {
 
     if (res === game.ERR_INVALID_TARGET) {
       res = this.creep.transfer(trgt, restype, amount);
-      return res;
     }
 
     if (res == game.ERR_NOT_IN_RANGE) {
@@ -127,10 +126,10 @@ class CreepGeneralWorker {
 
     if (mode == 'p') {
       console.log('$job', job);
-      let src = game.getObjectById(job.src);
+      let src = game.getObjectById()(job.src);
       return '[' + mpos + '] I am picking up ' + rtype + ' at ' + src;
     } else {
-      let dst = game.getObjectById(job.dst);
+      let dst = game.getObjectById()(job.dst);
       return '[' + mpos + '] I am dropping off ' + rtype + ' at ' + dst;
     }
   }
@@ -139,15 +138,17 @@ class CreepGeneralWorker {
     let mode = this.get_mode();
 
     if (mode === 'p') {
-      this.debug('pickup for job');
-      let src = game.getObjectById(job.src);
-      if (this.take_resource_from(src, job.rtype, details.amount) === game.OK) {
+      this.debug('pickup for job', job.src);
+      let src = game.getObjectById()(job.src);
+      let res = this.take_resource_from(src, job.rtype, details.amount);
+      if (this.creep.store.getUsedCapacity(job.rtype) >= details.amount) {
         this.clear_job();
       }
     } else {
       this.debug('dropoff for job');
-      let dst = game.getObjectById(job.dst);
-      if (this.put_resource_into(dst, job.rtype, details.amount) === game.OK) {
+      let dst = game.getObjectById()(job.dst);
+      let amt = this.creep.store.getUsedCapacity(job.rtype);
+      if (this.put_resource_into(dst, job.rtype, amt) === game.OK) {
         this.room.add_completed_amount_to_job(job, details.amount);
         this.clear_job();
       }
