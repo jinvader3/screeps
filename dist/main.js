@@ -19,7 +19,6 @@ module.exports.loop = function () {
 		let creep = game.creeps()[name];
     let parts = name.split(':');
     let rn = parts[0];
-    console.log('adding creep ' + name + ' to room ' + rn);
     rooms[rn].add_creep(creep);
 	}
 

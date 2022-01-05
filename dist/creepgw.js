@@ -86,6 +86,10 @@ class CreepGeneralWorker {
     let res = this.creep.upgradeController(trgt);
 
     if (res === game.ERR_INVALID_TARGET) {
+      res = this.creep.build(trgt);
+    }
+
+    if (res === game.ERR_INVALID_TARGET) {
       res = this.creep.transfer(trgt, restype, amount);
     }
 
@@ -102,10 +106,8 @@ class CreepGeneralWorker {
 
   got_new_job (job, details) {
     if (this.creep.store.getUsedCapacity(job.rtype) > 0) {
-      console.log('going into delivery mode');
       this.set_mode('d');
     } else {
-      console.log('going into pickup mode');
       this.set_mode('p');
     }
   }
@@ -125,7 +127,6 @@ class CreepGeneralWorker {
     let mpos = this.creep.pos.x + ':' + this.creep.pos.y;
 
     if (mode == 'p') {
-      console.log('$job', job);
       let src = game.getObjectById()(job.src);
       return '[' + mpos + '] I am picking up ' + rtype + ' at ' + src;
     } else {
@@ -148,7 +149,8 @@ class CreepGeneralWorker {
       this.debug('dropoff for job');
       let dst = game.getObjectById()(job.dst);
       let amt = this.creep.store.getUsedCapacity(job.rtype);
-      if (this.put_resource_into(dst, job.rtype, amt) === game.OK) {
+      let res = this.put_resource_into(dst, job.rtype, amt);
+      if (this.creep.store.getUsedCapacity(job.rtype) === 0) {
         this.room.add_completed_amount_to_job(job, details.amount);
         this.clear_job();
       }
@@ -159,12 +161,10 @@ class CreepGeneralWorker {
     this.debug('creep gw tick');
 
     for (let _ = 0; _ < 3; _++) {
-      console.log('fetching job info');
       let job_details = this.get_job_details();
       let job = job_details ? this.room.get_job_by_juid(job_details.juid) : null;
 
       if (job === null) {
-        console.log('requesting new job');
         job = this.room.request_job(this.creep)
 
         if (job === null) {
@@ -183,7 +183,6 @@ class CreepGeneralWorker {
       job = job_details ? this.room.get_job_by_juid(job_details.juid) : null;
       this.got_same_job(job, job_details);
 
-      console.log(this.creep.name, this.get_status());
     }
   }
 }

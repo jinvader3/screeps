@@ -8,3 +8,5 @@ class CreepDummy {
   }
 }
 
+module.exports.CreepDummy = CreepDummy;
+

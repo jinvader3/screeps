@@ -2,6 +2,7 @@ const game = require('./game');
 _ = game._;
 const { CreepGeneralWorker } = require('./creepgw');
 const { CreepDummy } = require('./creepdummy');
+const { CreepMiner } = require('./creepminer');
 
 class Room {
   constructor (room) {
@@ -44,44 +45,99 @@ class Room {
   }
 
   add_creep (creep) {
-    if (creep.memory.c == 'gw') {
-      creep = new CreepGeneralWorker(this, creep);
-    } else {
-      creep.memory.c = 'gw';
-      creep = new CreepDummy(this, creep);
+    switch (creep.memory.c) {
+      case 'gw': this.creeps.push(new CreepGeneralWorker(this, creep)); break;
+      case 'miner': this.creeps.push(new CreepMiner(this, creep)); break;
+      default: this.creeps.push(new CreepDummy(this, creep)); break;
     }
-
-    this.creeps.push(creep);
   }
 
   tick () {
-    console.log('ticking for room');
+    let creep_group_counts = {
+      'worker': 0,
+      'minera': 0,
+      'minerb': 0,
+    };
 
-    if (this.creeps.length < 10 && this.spawns.length > 0) {
-      console.log('trying to spawn creep');
+    _.each(this.creeps, creep => {
+      if (creep.creep.memory === undefined) {
+        return;
+      }
+      if (creep_group_counts[creep.creep.memory.g] === undefined) {
+        creep_group_counts[creep.creep.memory.g] = 0;
+      }
+      creep_group_counts[creep.creep.memory.g]++;
+    });
+
+    if (creep_group_counts.minera < 1 && this.spawns.length > 0) {
       this.spawns[0].spawnCreep(
-        [game.WORK, game.CARRY, game.MOVE, game.MOVE],
+        [game.WORK, game.WORK, game.WORK, game.MOVE, game.MOVE, game.MOVE],
         this.room.name + ':' + game.time(),
         {
-          'c': 'gw',
+          memory: { 'c': 'miner', 'g': 'minera', 's': this.sources[0].id },
         }
       );
     }
 
-    console.log('creating jobs for room');
- 
+    if (creep_group_counts.minerb < 1 && this.sources.length > 1 && this.spawns.length > 0) {
+      this.spawns[0].spawnCreep(
+        [game.WORK, game.WORK, game.WORK, game.MOVE, game.MOVE, game.MOVE],
+        this.room.name + ':' + game.time(),
+        {
+          memory: { 'c': 'miner', 'g': 'minerb', 's': this.sources[1].id },
+        }
+      );
+    }
+
+    if (creep_group_counts.worker < 10 && this.spawns.length > 0) {
+      this.spawns[0].spawnCreep(
+        [game.WORK, game.CARRY, game.MOVE, game.MOVE],
+        this.room.name + ':' + game.time(),
+        {
+          memory: { 'c': 'gw', 'g': 'worker', 's': this.sources[1].id },
+        }
+      );
+    }
+
+    let csites = this.room.find(game.FIND_CONSTRUCTION_SITES);
+
+    let denergy = _.filter(this.room.find(game.FIND_DROPPED_RESOURCES), 
+      i => i.resourceType === game.RESOURCE_ENERGY
+    );
+   
+    let sources_and_denergy = _.merge(this.sources, denergy);
+
     _.each(this.sources, source => {
+      _.each(csites, csite => {
+        let needed = csite.progressTotal - csite.progress;
+        let outstanding = this.sum_uncompleted_rtype_amount_for_dst(
+          csite, game.RESOURCE_ENERGY
+        );
+        console.log('needed=' + needed + ' outstanding=' + outstanding);
+        let delta = needed - outstanding;
+        console.log('delta=' + delta + ' most=' + most);
+        let most = this.sum_uncomitted_rtype_amount_for_src(
+          source, game.RESOURCE_ENERGY
+        );
+        let actual = Math.min(delta, most);
+        console.log('actual=' = actual);
+
+        if (actual < 1) {
+          return;
+        }
+
+        this.add_job_rmove(
+          source, csite, game.RESOURCE_ENERGY, actual
+        );
+      });
+
       _.each(this.spawns, spawn => {
         let outstanding = this.sum_uncompleted_rtype_amount_for_dst(
           spawn, game.RESOURCE_ENERGY
         );
         
-        console.log('outstanding', outstanding);
-        
         let delta = spawn.store.getFreeCapacity(game.RESOURCE_ENERGY) - outstanding;
         
-        console.log('delta', delta);
-
         let most = this.sum_uncomitted_rtype_amount_for_src(
           source, game.RESOURCE_ENERGY
         );
@@ -108,14 +164,6 @@ class Room {
         }
       }
     });
-
-    console.log('listing jobs');
-
-    _.each(this.jobs, job => {
-      console.log('job', job.type, job.src, job.dst, job.rtype, job.amount);
-    });
-
-    console.log('iterating creeps', this.creeps.length);
 
     for (let ndx in this.creeps) {
       let creep = this.creeps[ndx];
@@ -192,14 +240,21 @@ class Room {
 
   sum_uncomitted_rtype_amount_for_src (src, rtype) {
     let have;
+    
     if (src.store !== undefined) {
       have = src.store.getUsedCapacity(rtype);
     } else {
-      have = src.energy;
+      if (src.amount !== undefined) {
+        have = src.amount;
+      } else {
+        have = src.energy;
+      }
     }
+
     let jobs = _.filter(this.jobs, job => job.src === src.id);
     jobs = _.filter(jobs, job => job.rtype === rtype);
     let committed = _.sumBy(jobs, job => job.amount);
+
     return have - committed;
   }
 
@@ -210,6 +265,9 @@ class Room {
 
   sum_taken_amount_for_job (job) {
     return _.sumBy(this.creeps, creep => {
+      if (creep.get_job_details === undefined) {
+        return;
+      }
       let details = creep.get_job_details();
       if (details === null) {
         return 0;
@@ -240,15 +298,12 @@ class Room {
 
     const store = creep.store;
 
-    console.log('@@@', store.getUsedCapacity(game.RESOURCE_ENERGY));
-
     let delivery_jobs = 
       _.filter(jobs, job => store.getUsedCapacity(job.rtype) > 0);
 
     let job;
   
     if (delivery_jobs.length > 0) {
-      console.log('handing out delivery job');
       job = _.sample(delivery_jobs);
     } else {
       job = _.sample(jobs);
@@ -271,7 +326,6 @@ class Room {
   }
 
   add_job_rmove (job_src, job_dst, rtype, amount) {
-    console.log('adding new job');
     this.jobs.push({
       type: 'rmove',
       src: job_src.id,

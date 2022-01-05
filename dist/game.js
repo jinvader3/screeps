@@ -34,6 +34,7 @@ if (global['Game'] !== undefined) {
     ERR_INVALID_TARGET: ERR_INVALID_TARGET,
     ERR_NOT_IN_RANGE: ERR_NOT_IN_RANGE,
     OK: OK,
+    FIND_CONSTRUCTION_SITES: FIND_CONSTRUCTION_SITES,
     rooms: () => Game.rooms,
     creeps: () => Game.creeps,
   };
@@ -53,6 +54,7 @@ if (global['Game'] !== undefined) {
     FIND_SOURCES: 'find_sources',
     ERR_INVALID_TARGET: 'err_invalid_target',
     ERR_NOT_IN_RANGE: 'err_not_in_range',
+    FIND_CONSTRUCTION_SITES: 'find_construction_sites',
     OK: 'ok',
     getObjectById: () => getObjectByIdTrampoline,
     setGetObjectByIdTrampoline: setGetObjectByIdTrampoline,
