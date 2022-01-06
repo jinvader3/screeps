@@ -33,10 +33,15 @@ if (global['Game'] !== undefined) {
     getObjectById: () => Game.getObjectById,
     ERR_INVALID_TARGET: ERR_INVALID_TARGET,
     ERR_NOT_IN_RANGE: ERR_NOT_IN_RANGE,
+    ERR_NOT_ENOUGH_RESOURCES: ERR_NOT_ENOUGH_RESOURCES,
+    ERR_FULL: ERR_FULL,
     OK: OK,
     FIND_CONSTRUCTION_SITES: FIND_CONSTRUCTION_SITES,
     rooms: () => Game.rooms,
     creeps: () => Game.creeps,
+    STRUCTURE_EXTENSION: STRUCTURE_EXTENSION,
+    STRUCTURE_ROAD: STRUCTURE_ROAD,
+    STRUCTURE_SPAWN: STRUCTURE_SPAWN,
   };
 } else {
   // The actual constants are wrong which is good because code should
@@ -54,9 +59,14 @@ if (global['Game'] !== undefined) {
     FIND_SOURCES: 'find_sources',
     ERR_INVALID_TARGET: 'err_invalid_target',
     ERR_NOT_IN_RANGE: 'err_not_in_range',
+    ERR_NOT_ENOUGH_RESOURCES: 'err_not_enough_resources',
+    ERR_FULL: 'err_full',
     FIND_CONSTRUCTION_SITES: 'find_construction_sites',
     OK: 'ok',
     getObjectById: () => getObjectByIdTrampoline,
     setGetObjectByIdTrampoline: setGetObjectByIdTrampoline,
+    STRUCTURE_EXTENSION: 'structure_extension',
+    STRUCTURE_ROAD: 'structure_road',
+    STRUCTURE_SPAWN: 'structure_spawn',
   };
 }

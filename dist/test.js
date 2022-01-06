@@ -6,8 +6,9 @@ const game = require('./game');
 const _ = game._;
 
 class GhostStore {
-  constructor () {
+  constructor (total_capacity) {
     this.res = {};
+    this.total_capacity = total_capacity;
   }
 
   set_resource (rtype, amount, capacity) {
@@ -33,6 +34,10 @@ class GhostStore {
     }
     return this.res[rtype].amount;
   }
+
+  getCapacity () {
+    return this.total_capacity;
+  }
 }
 
 class GhostRoomPosition {
@@ -43,6 +48,19 @@ class GhostRoomPosition {
   }
 }
 
+class GhostCSite {
+  constructor (name, stype) {
+    this.id = name;
+    this.structureType = stype;
+  }
+}
+
+class GhostController {
+  constructor (id) {
+    this.id = id;
+  }
+}
+
 class GhostCreep {
   constructor (name, room) {
     this.name = name;
@@ -50,13 +68,48 @@ class GhostCreep {
     this.store = new GhostStore();
     this.pos = new GhostRoomPosition(0, 0, room.name);
   }
+
+  upgradeController (trgt) {
+    if (typeof trgt !== GhostController) {
+      return game.ERR_INVALID_TARGET;
+    }
+
+    return game.OK;
+  }
+
+  transfer (trgt, restype, amount) {
+    if (typeof trgt !== GhostSpawn) {
+      return game.ERR_INVALID_TARGET;
+    }
+
+    return game.OK;
+  }
+
+  build (trgt) {
+    if (typeof trgt !== GhostCSite) {
+      return game.ERR_INVALID_TARGET;
+    }
+
+    return game.OK;
+  }
+
+  harvest (trgt) {
+    if (typeof trgt !== GhostSource) {
+      return game.ERR_INVALID_TARGET;
+    }
+    return game.OK;
+  }
+
+  withdraw (trgt, restype, amount) {
+    return game.ERR_INVALID_TARGET;
+  }
 }
 
 class GhostSource {
   constructor (id) {
     this.id = id;
     this.__type = 'source';
-    this.store = new GhostStore();
+    this.energy = 0;
   }
 }
 
@@ -106,99 +159,60 @@ test('Room:general1', t => {
 
 test('Room:general2', t => {
   let groom = new GhostRoom('E34N32');
-  groom.add_object(new GhostSource('xmns2'));
-  groom.add_object(new GhostSource('mxjs1'));
-  groom.add_object(new GhostSpawn('sp32'));
-  room = new Room(groom);
-  t.truthy(room.spawns.length == 1);
-  t.truthy(room.sources.length == 2);
-  room.spawns[0].store.set_resource(game.RESOURCE_ENERGY, 0, 100);
-  room.tick();
-  console.log('room.jobs', room.jobs);
-  // No jobs created because the source had no energy.
-  t.truthy(room.jobs.length == 0);
-  t.pass();
-});
+  let so0 = new GhostSource('xmns2');
+  let so1 = new GhostSource('mxjs1');
+  let sp0 = new GhostSpawn('sp32');
+  groom.add_object(so0);
+  groom.add_object(so1);
+  groom.add_object(sp0);
+  so0.energy = 100;
+  room = new Room(groom);  
+  let gcreep = new GhostCreep('c392', groom);
+  gcreep.memory.c = 'gw';
+  game.setGetObjectByIdTrampoline(id => {
+    return _.find(groom.objs, obj => obj.id === id);
+  });
+  room.add_creep(gcreep);
 
-test('Room:general3', t => {
-  let groom = new GhostRoom('E34N32');
-  groom.add_object(new GhostSource('xmns2'));
-  groom.add_object(new GhostSource('mxjs1'));
-  groom.add_object(new GhostSpawn('sp32'));
-  room = new Room(groom);
-  t.truthy(room.spawns.length == 1);
-  t.truthy(room.sources.length == 2);
-  room.spawns[0].store.set_resource(game.RESOURCE_ENERGY, 0, 100);
-  room.sources[0].store.set_resource(game.RESOURCE_ENERGY, 50, 100);
-  room.sources[1].store.set_resource(game.RESOURCE_ENERGY, 50, 100);
-  room.tick();
-  console.log('room.jobs', room.jobs);
-  // No jobs created because the source had no energy.
-  t.truthy(room.jobs.length == 2);
-  t.pass();
-});
+  let ca = false;
 
-test('Room:creep1', t => {
-  let room = new GhostRoom('E32N32');
+  sp0.store.set_resource(game.RESOURCE_ENERGY, 0, 100);
 
-  let job = {
-      src: 'xmn2',
-      dst: 'sp32',
-      rtype: game.RESOURCE_ENERGY,
-      amount: 100,
-      juid: '3029302932:392232',
+  gcreep.store.set_resource(game.RESOURCE_ENERGY, 0, 100);
+  gcreep.harvest = () => { 
+    ca = true; 
+    return game.OK 
   };
-
-  let mxjs1 = new GhostSource('mxjs1');
-  let xmn2 = new GhostSource('xmn2');
-  let sp32 = new GhostSpawn('sp32');
-
-  room.request_job = (free_cap) => job;
-  room.get_job_by_juid = (juid) => job;
-  room.add_completed_amount_to_job = () => undefined;
-
-  let c0 = new GhostCreep('E32N32:29392932', room);
-
-  c0.memory.g = true;
-
-  let harvest_called = false;
-  let move_to_called = false;
-
-  c0.harvest = (trgt) => {
-    harvest_called = true;
-    return game.ERR_NOT_IN_RANGE;
+  let cb = false;
+  gcreep.upgradeController = () => { cb = true; return game.OK; };
+ 
+  room.tick();
+  t.truthy(ca && !cb);
+  gcreep.harvest = () => { 
+    ca = true; 
+    gcreep.store.set_resource(game.RESOURCE_ENERGY, 100, 100);
+    return game.OK 
   };
-
-  c0.moveTo = (trgt) => {
-    move_to_called = true;
+  room.tick();
+  t.truthy(ca && !cb);
+  room.tick();
+  t.truthy(cb);
+  ca = false;
+  cb = false;
+  room.tick();
+  t.truthy(!ca && cb);
+  gcreep.upgradeController = () => { 
+    cb = true; 
+    gcreep.store.set_resource(game.RESOURCE_ENERGY, 0, 100);
     return game.OK;
   };
+  room.tick();
+  ca = false;
+  cb = false;
+  room.tick();
+  t.truthy(ca && !cb);
 
-  c0.upgradeController = (trgt) => game.OK;
 
-  let g0 = new CreepGeneralWorker(room, c0);
-
-  let f = (id) => {
-    console.log('$id', id);
-    switch (id) {
-      case 'xmn2': return xmn2; 
-      case 'sp32': return sp32;
-      case 'mxjs1': t.fail();
-    }
-    t.fail();
-  };
-
-  game.setGetObjectByIdTrampoline(f);
-  g0.tick();
-
-  t.truthy(harvest_called && move_to_called);
-
-  c0.harvest = (trgt) => {
-    c0.store.set_resource(job.rtype, 100, 100);
-    return game.OK;
-  };
-
-  g0.tick();
   t.pass();
 });
 

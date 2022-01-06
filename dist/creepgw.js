@@ -7,27 +7,20 @@ class CreepGeneralWorker {
     this.room = room;
   }
 
-  get_job_details () {
-    return this.creep.memory.job || null;
-  }
-
-  set_job (job, amount) {
-    this.creep.memory.job = {
-      juid: job.juid,
-      amount: amount,
-    };
-  }
-
-  clear_job () {
-    this.creep.memory.job = null;
-  }
-
   get_mode () {
-    return this.creep.memory.m || 'i';
+    let mode = this.creep.memory.m;
+    if (mode === undefined || mode === null) {
+      return 'p';
+    }
+    return mode;
   }
 
   set_mode (mode) {
     this.creep.memory.m = mode;
+  }
+
+  clear_target () {
+    this.creep.memory.t = null;
   }
 
   set_target (trgt) {
@@ -42,15 +35,41 @@ class CreepGeneralWorker {
     this.creep.memory.t = id;
   }
 
-  get_target (trgt) {
+  get_target () {
+    if (this.creep.memory.t === null) {
+      return null;
+    }
     return game.getObjectById()(this.creep.memory.t);
   }
 
-  take_resource_from (trgt, restype, amount) {
+  count_work_parts () {
+    let body = this.creep.body;
+    return _.sumBy(body, part => part.type === game.WORK);
+  }
+
+  get (trgt, restype) {
+    if (this.creep.store.getFreeCapacity(restype) === 0) {
+      return false;
+    }
+
     let res = this.creep.harvest(trgt);
 
+    if (res == game.OK) {
+      return true;
+    }
+
+    if (res === game.ERR_NOT_ENOUGH_RESOURCES) {
+      return false;
+    }
+    
     if (res === game.ERR_INVALID_TARGET) {
-      res = this.creep.withdraw(trgt, restype, amount);
+      res = this.creep.withdraw(
+        trgt, restype, this.creep.store.getFreeCapacity(restype)
+      );
+    }
+
+    if (res === game.ERR_FULL || res === game.ERR_NOT_ENOUGH_RESOURCES) {
+      return false;
     }
 
     if (res == game.ERR_NOT_IN_RANGE) {
@@ -60,8 +79,53 @@ class CreepGeneralWorker {
       }
       return res2;
     }
-
     return res;
+  }
+
+  put (trgt, restype) {
+    if (this.creep.store.getUsedCapacity(restype) === 0) {
+      return false;
+    }
+
+    let res = this.creep.upgradeController(trgt);
+
+    if (res === game.OK) {
+      return true;
+    }
+
+    if (res === game.ERR_NOT_ENOUGH_RESOURCES) {
+      return false;
+    }
+
+    if (res === game.ERR_INVALID_TARGET) {
+      res = this.creep.build(trgt);
+      if (res === game.OK) {
+        return true;
+      }
+    }
+
+    if (res === game.ERR_NOT_ENOUGH_RESOURCES) {
+      return false;
+    }
+
+    if (res === game.ERR_INVALID_TARGET) {
+      let amount = this.creep.store.getUsedCapacity(restype);
+      res = this.creep.transfer(trgt, restype, amount);
+      if (res === game.OK) {
+        return true;
+      }
+    }
+
+    if (res === game.ERR_NOT_ENOUGH_RESOURCES) {
+      return false;
+    }
+
+    if (res == game.ERR_NOT_IN_RANGE) {
+      let res2 = this.move_to(trgt);
+      return true;
+    }    
+
+    return true;
   }
 
   move_to (trgt) {
@@ -82,107 +146,34 @@ class CreepGeneralWorker {
     console.log.apply(console, args);
   }
 
-  put_resource_into (trgt, restype, amount) {
-    let res = this.creep.upgradeController(trgt);
-
-    if (res === game.ERR_INVALID_TARGET) {
-      res = this.creep.build(trgt);
-    }
-
-    if (res === game.ERR_INVALID_TARGET) {
-      res = this.creep.transfer(trgt, restype, amount);
-    }
-
-    if (res == game.ERR_NOT_IN_RANGE) {
-      let res2 = this.move_to(trgt);
-      if (res2 === OK) {
-        return res;
-      }
-      return res2;
-    }    
-
-    return res;
-  }
-
-  got_new_job (job, details) {
-    if (this.creep.store.getUsedCapacity(job.rtype) > 0) {
-      this.set_mode('d');
-    } else {
-      this.set_mode('p');
-    }
-  }
-
-  get_status() {
-    let mode = this.get_mode();
-    let details = this.get_job_details();
-
-    if (!details) {
-      return 'I have no job details.';
-    }
-    
-    let job = this.room.get_job_by_juid(details.juid);
-
-    let rtype = job.rtype;
-
-    let mpos = this.creep.pos.x + ':' + this.creep.pos.y;
-
-    if (mode == 'p') {
-      let src = game.getObjectById()(job.src);
-      return '[' + mpos + '] I am picking up ' + rtype + ' at ' + src;
-    } else {
-      let dst = game.getObjectById()(job.dst);
-      return '[' + mpos + '] I am dropping off ' + rtype + ' at ' + dst;
-    }
-  }
-
-  got_same_job (job, details) {
-    let mode = this.get_mode();
-
-    if (mode === 'p') {
-      this.debug('pickup for job', job.src);
-      let src = game.getObjectById()(job.src);
-      let res = this.take_resource_from(src, job.rtype, details.amount);
-      if (this.creep.store.getUsedCapacity(job.rtype) >= details.amount) {
-        this.clear_job();
-      }
-    } else {
-      this.debug('dropoff for job');
-      let dst = game.getObjectById()(job.dst);
-      let amt = this.creep.store.getUsedCapacity(job.rtype);
-      let res = this.put_resource_into(dst, job.rtype, amt);
-      if (this.creep.store.getUsedCapacity(job.rtype) === 0) {
-        this.room.add_completed_amount_to_job(job, details.amount);
-        this.clear_job();
-      }
-    }
-  }
-
-  tick () {
-    this.debug('creep gw tick');
-
-    for (let _ = 0; _ < 3; _++) {
-      let job_details = this.get_job_details();
-      let job = job_details ? this.room.get_job_by_juid(job_details.juid) : null;
-
-      if (job === null) {
-        job = this.room.request_job(this.creep)
-
-        if (job === null) {
-          this.debug('no job; no work');
-          return;
-        }
-
-        this.debug('got new job');
-        this.set_job(job, this.creep.store.getFreeCapacity(job.rtype));
-        this.got_new_job(job, job_details);
+  tick (dt_pull, dt_push) {
+    let trgt = this.get_target();
+    let ecarry = this.creep.store.getUsedCapacity(game.RESOURCE_ENERGY);
+    if (!trgt) {
+      if (ecarry === 0) {
+        trgt = dt_pull();
+        this.set_mode('pull');
       } else {
-        this.debug('got same job');
+        trgt = dt_push();
+        this.set_mode('push');
       }
-      
-      job_details = this.get_job_details();
-      job = job_details ? this.room.get_job_by_juid(job_details.juid) : null;
-      this.got_same_job(job, job_details);
 
+      this.set_target(trgt);
+    }
+
+    console.log('creep mode', this.get_mode(), trgt);
+    if (trgt) {
+      if (this.get_mode() === 'pull') {
+        if (this.get(trgt) === false) {
+          this.clear_target();
+          this.tick(dt_pull, dt_push);
+        }
+      } else {
+        if (this.put(trgt) === false) {
+          this.clear_target();
+          this.tick(dt_pull, dt_push);
+        }
+      }
     }
   }
 }

@@ -15,6 +15,8 @@ class Room {
     this.jobs = this.room.memory.jobs;
     this.room.memory.jobs_uid = this.room.memory.jobs_uid || 0;
     this.breq = [];
+    this.room.memory.res_xfer_intents = this.room.memory.res_xfer_intents || [];
+    this.res_xfer_intents = this.room.memory.res_xfer_intents;
   }
 
   request_build_creep (ruid, body_unit, unit_min, unit_max, clazz, priority) {
@@ -53,6 +55,22 @@ class Room {
   }
 
   tick () {
+    // Do any accounting from registration of resource transfer intentions
+    // on the previous tick.
+    _.each(this.res_xfer_intents, intent => {
+      let creep = game.creeps[intent.creep];
+      let job = this.get_job_by_juid(intent.juid);
+      
+      if (creep === undefined || job === null)
+        return;
+
+      let delta = intent.amount - creep.store.getUsedCapacity(intent.rtype);
+
+      if (delta > 0) {
+        job.amount -= delta;
+      }
+    });
+
     let creep_group_counts = {
       'worker': 0,
       'minera': 0,
@@ -69,6 +87,7 @@ class Room {
       creep_group_counts[creep.creep.memory.g]++;
     });
 
+    /*
     if (creep_group_counts.minera < 1 && this.spawns.length > 0) {
       this.spawns[0].spawnCreep(
         [game.WORK, game.WORK, game.WORK, game.MOVE, game.MOVE, game.MOVE],
@@ -88,8 +107,9 @@ class Room {
         }
       );
     }
+    */
 
-    if (creep_group_counts.worker < 10 && this.spawns.length > 0) {
+    if (creep_group_counts.worker < 6 && this.spawns.length > 0) {
       this.spawns[0].spawnCreep(
         [game.WORK, game.CARRY, game.MOVE, game.MOVE],
         this.room.name + ':' + game.time(),
@@ -100,75 +120,106 @@ class Room {
     }
 
     let csites = this.room.find(game.FIND_CONSTRUCTION_SITES);
-
     let denergy = _.filter(this.room.find(game.FIND_DROPPED_RESOURCES), 
       i => i.resourceType === game.RESOURCE_ENERGY
     );
-   
-    let sources_and_denergy = _.merge(this.sources, denergy);
 
-    _.each(this.sources, source => {
-      _.each(csites, csite => {
-        let needed = csite.progressTotal - csite.progress;
-        let outstanding = this.sum_uncompleted_rtype_amount_for_dst(
-          csite, game.RESOURCE_ENERGY
-        );
-        console.log('needed=' + needed + ' outstanding=' + outstanding);
-        let delta = needed - outstanding;
-        console.log('delta=' + delta + ' most=' + most);
-        let most = this.sum_uncomitted_rtype_amount_for_src(
-          source, game.RESOURCE_ENERGY
-        );
-        let actual = Math.min(delta, most);
-        console.log('actual=' = actual);
+    let sources_and_denergy = [];
+    _.each(this.sources, source => sources_and_denergy.push(source));
+    _.each(denergy, i => sources_and_denergy.push(i));
 
-        if (actual < 1) {
-          return;
-        }
+    let dt_pull = [
+      this.dt_pull_sources(),
+    ];
 
-        this.add_job_rmove(
-          source, csite, game.RESOURCE_ENERGY, actual
-        );
-      });
-
-      _.each(this.spawns, spawn => {
-        let outstanding = this.sum_uncompleted_rtype_amount_for_dst(
-          spawn, game.RESOURCE_ENERGY
-        );
-        
-        let delta = spawn.store.getFreeCapacity(game.RESOURCE_ENERGY) - outstanding;
-        
-        let most = this.sum_uncomitted_rtype_amount_for_src(
-          source, game.RESOURCE_ENERGY
-        );
-
-        if (Math.min(most, delta) > 0) {
-          // Don't overcommit. Just wait for it to be handy.
-          this.add_job_rmove(
-            source, spawn, game.RESOURCE_ENERGY, 
-            Math.min(most, delta)
-          );
-        }
-      });
-
-      if (this.room.controller && this.room.controller.my) {
-        if (this.sum_uncompleted_rtype_amount_for_dst(
-          this.room.controller, game.RESOURCE_ENERGY) < 1000) {
-            this.add_job_rmove(
-              source, this.room.controller, game.RESOURCE_ENERGY,
-              // Only commit what is actually here.
-              this.sum_uncomitted_rtype_amount_for_src(
-                source, game.RESOURCE_ENERGY
-              )
-            );
-        }
-      }
-    });
+    let dt_push = [
+      this.dt_push_controller_below_ticks(1000),
+      this.dt_push_spawns(0),
+      this.dt_push_nearest_csite(),
+      this.dt_push_controller_always(),
+    ];
 
     for (let ndx in this.creeps) {
       let creep = this.creeps[ndx];
-      creep.tick();
+      console.log('ticking creep');
+      creep.tick(
+        () => this.dt_run(dt_pull, creep), 
+        () => this.dt_run(dt_push, creep)
+      );
     }
+  }
+
+  dt_pull_sources () {
+    return (creep) => {
+      console.log('dt_pull_sources');
+      _.each(this.sources, s => {
+        console.log('@', s.energy);
+      });
+      return _.sample(_.filter(this.sources, s => s.energy > 0));
+    };
+  }
+
+  dt_push_controller_always () {
+    return (creep) => {
+      let c = this.room.controller;
+      if (c && c.my) {
+        return c;
+      }
+      return null;
+    };
+  }
+
+  dt_push_controller_below_ticks (below_ticks) {
+    return (creep) => {
+      let c = this.room.controller;
+      if (c && c.my && c.ticksToDowngrade <= below_ticks) {
+        return c;
+      }
+      return null;
+    };
+  }
+
+  dt_run (dt, creep) {
+    console.log('dt_run');
+    for (let x = 0; x < dt.length; ++x) {
+      let dte = dt[x];
+      let trgt = dte(creep);
+      if (trgt) {
+        return trgt;
+      }
+    }
+
+    return null;
+  }
+
+  dt_push_nearest_csite () {
+    return (creep) => {
+      let cx = creep.creep.pos.x;
+      let cy = creep.creep.pos.y;
+      let bcsite = null;
+      let bdist = null;
+      _.each(this.csites, csite => {
+        let x = csite.pos.x;
+        let y = csite.pos.y;
+        let cx = x - cx;
+        let cy = y - cy;
+        let dist = Math.sqrt(cx * cx + cy * cy);
+        if (bdist === null || dist < bdist) {
+          bdist = dist;
+          bcsite = csite;
+        }
+      });
+      return bcsite;
+    };
+  }
+
+  dt_push_spawns (threshold) {
+    return (creep) => {
+      let spawns = _.filter(
+        this.spawns, s => s.store.getFreeCapacity(game.RESOURCE_ENERGY) > threshold
+      );
+      return _.sample(spawns);
+    };
   }
 
   count_source_spots (src) {
@@ -207,136 +258,6 @@ class Room {
     }
     return this.room.memory.ssc[src.id];
   }
-
-  count_jobs_for_source (src) {
-    let jobs = _.filter(this.jobs, job => job.src == src.id);
-    return jobs.length;
-  }
-
-  sum_uncompleted_rtype_amount_for_dst (dst, rtype) {
-    let jobs = _.filter(this.jobs, job => job.dst == dst.id);
-    jobs = _.filter(jobs, job => job.rtype == rtype);
-    return _.sumBy(jobs, job => {
-      return job.amount - this.sum_completed_amount_for_job(job);
-    });
-  }
-
-  count_rtype_jobs_for_source (src, rtype) {
-    let jobs = _.filter(this.jobs, job => job.src === src.id);
-    jobs = _.filter(jobs, job => job.rtype == rtype);
-    return _.sumBy(jobs, job => {
-      return job.amount - this.sum_uncompleted_amount_for_job(job);
-    });
-  }
-
-  sum_completed_amount_for_job (job) {
-    let completed = _.filter(job.events, e => e.type == 'complete');
-    return _.sumBy(completed, e => e.amount);
-  }
-
-  add_completed_amount_to_job (job, amount) {
-    job.events.push({ type: 'completed', amount: amount });
-  }
-
-  sum_uncomitted_rtype_amount_for_src (src, rtype) {
-    let have;
-    
-    if (src.store !== undefined) {
-      have = src.store.getUsedCapacity(rtype);
-    } else {
-      if (src.amount !== undefined) {
-        have = src.amount;
-      } else {
-        have = src.energy;
-      }
-    }
-
-    let jobs = _.filter(this.jobs, job => job.src === src.id);
-    jobs = _.filter(jobs, job => job.rtype === rtype);
-    let committed = _.sumBy(jobs, job => job.amount);
-
-    return have - committed;
-  }
-
-  sum_uncompleted_amount_for_job (job) {
-    let completed = this.sum_completed_amount_for_job(job);
-    return job.amount - completed;
-  }
-
-  sum_taken_amount_for_job (job) {
-    return _.sumBy(this.creeps, creep => {
-      if (creep.get_job_details === undefined) {
-        return;
-      }
-      let details = creep.get_job_details();
-      if (details === null) {
-        return 0;
-      }
-      if (details.juid === job.juid) {
-        return details.amount;
-      }
-      return 0;
-    });
-  }
-
-  sum_net_amount_for_job (job) {
-    let a = this.sum_completed_amount_for_job(job);
-    let b = this.sum_taken_amount_for_job(job);
-    return job.amount - a - b;
-  }
-
-  get_next_job_uid () {
-    return game.time() + ':' + this.room.memory.jobs_uid++;
-  }
-
-
-  request_job (creep) {
-    let jobs = _.filter(this.jobs, job => {
-      let a = this.sum_net_amount_for_job(job);
-      return a > 0;
-    });
-
-    const store = creep.store;
-
-    let delivery_jobs = 
-      _.filter(jobs, job => store.getUsedCapacity(job.rtype) > 0);
-
-    let job;
-  
-    if (delivery_jobs.length > 0) {
-      job = _.sample(delivery_jobs);
-    } else {
-      job = _.sample(jobs);
-    }
-
-    if (job === undefined)
-      return null;
- 
-    return {
-      src: job.src,
-      dst: job.dst,
-      rtype: job.rtype,
-      amount: Math.min(creep.store.getCapacity(), job.amount),
-      juid: job.juid,
-    }
-  }
-
-  get_job_by_juid (juid) {
-    return _.find(this.jobs, job => job.juid === juid);
-  }
-
-  add_job_rmove (job_src, job_dst, rtype, amount) {
-    this.jobs.push({
-      type: 'rmove',
-      src: job_src.id,
-      dst: job_dst.id,
-      rtype: rtype,
-      amount: amount,
-      juid: this.get_next_job_uid(), 
-      events: [],
-    });
-  }
-
 }
 
 module.exports.Room = Room;

@@ -20,6 +20,9 @@ class MySocket(screepsapi.Socket):
   def process_log(self, ws, msg, shard):
     self.eque.put({ 'topic': 'log', 'msg': msg, 'shard': shard })
 
+  def process_log_seperator(self, ws, shard):
+    self.eque.put({ 'topic': 'log-seperator', 'shard': shard })
+
   def process_error(self, ws, msg, shard):
     self.eque.put({ 'topic': 'log', 'msg': msg, 'shard': shard })
 
@@ -46,6 +49,7 @@ class Program:
     self.pw = pw
     self.log = []
     self.objs_by_room = {}
+    self.rooms_ndx = 0
     
   def cleanup(self):
     curses.nocbreak()
@@ -67,24 +71,29 @@ class Program:
     ith = threading.Thread(target=self.input_entry, args=(event_que,))
     ith.start()
 
+    lkey = None
     while True:
       if self.cpanel == 'help':
-        self.show_panel_help()
+        self.show_panel_help(lkey)
       elif self.cpanel == 'log':
-        self.show_panel_log()
+        self.show_panel_log(lkey)
       elif self.cpanel == 'room':
-        self.show_panel_room()
+        self.show_panel_room(lkey)
       self.win.refresh()
+
+      lkey = None
 
       e = event_que.get()
 
       if e['topic'] != 'key':
           if e['topic'] == 'log':
-              self.log.append(e['msg'])
+            self.log.append(e['msg'])
+          elif e['topic'] == 'log-seperator':
+            self.log.append('')
           elif e['topic'] == 'obj':
-              xid = e['shard'] + ':' + e['room']
-              self.objs_by_room[xid] = self.objs_by_room.get(xid, {})
-              self.objs_by_room[xid][e['id']] = e['obj']
+            xid = e['shard'] + ':' + e['room']
+            self.objs_by_room[xid] = self.objs_by_room.get(xid, {})
+            self.objs_by_room[xid][e['id']] = e['obj']
           continue
 
       logging.info('%s' % e)
@@ -103,6 +112,8 @@ class Program:
         self.cpanel = self.panels[self.cpanels_ndx]
         logging.info('cpanel changes to %s' % self.cpanel)
 
+      lkey = key
+
   def show_panel_bar(self):
     items = [
       'HELP',
@@ -120,29 +131,55 @@ class Program:
 
     self.win.addstr(0, 0, pstr)
 
-  def show_panel_help(self):
+  def show_panel_help(self, key):
     self.win.clear()
     self.show_panel_bar()
     self.win.addnstr(2, 0, 'Welcome to the Help panel.', 40)
 
-  def show_panel_log(self):
-    self.win.clear()
+  def show_panel_log(self, key):
+    #self.win.clear()
+    self.win.noutrefresh()
     self.show_panel_bar()
 
-    log_sect = self.log[-20:][::-1]
+    h, w = self.win.getmaxyx()
+    
+    log_sect = self.log[-(h-1):][::-1]
 
     for x in range(0, len(log_sect)):
-        msg = log_sect[x]
-        self.win.addnstr(1 + x, 0, msg, 40)
+        msg = log_sect[x][0:w]
+        msg = msg + (' ' * (w - len(msg) - 1))
+        self.win.addnstr(1 + x, 0, msg, w)
+        self.win.noutrefresh()
 
-  def show_panel_room(self):
+  def show_panel_room(self, key):
     self.win.clear()
     self.show_panel_bar()
+    h, w = self.win.getmaxyx()
     # self.objs_by_room['<shard>:<room>']['<objid>'] = obj
+    rooms = list(self.objs_by_room.keys())
 
+    if len(rooms) == 0:
+        return
 
-  def object_update(self, obj_id, obj, room, shard):
-    pass
+    rooms_str = []
+
+    for x in range(0, len(rooms)):
+        if x == self.rooms_ndx:
+            rooms_str.append('[%s]' % rooms[x])
+        else:
+            rooms_str.append(rooms[x])
+    self.win.addnstr(1, 0, ' '.join(rooms_str), w)
+
+    croom = self.objs_by_room[rooms[self.rooms_ndx]]
+
+    for oid in croom:
+        obj = croom[oid]
+        x = obj['x']
+        y = obj['y']
+        logging.info('obj %s' % obj)
+        if x > w or x < 0 or y > h - 2 or y < 0: continue
+        logging.info('adding object at y=%s x=%s' % (obj['y'], obj['x']))
+        self.win.addch(obj['y'], obj['x'], 'X')
 
 def main(win, args):
   args = args[0]
@@ -151,9 +188,6 @@ def main(win, args):
   logging.info('a')
   logging.info('b')
   
-  win.addnstr(1, 0, 'ok:' + str(win), 10)
-  win.refresh()
-
   try:
    
     logging.info('c')
