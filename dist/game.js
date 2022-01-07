@@ -42,12 +42,16 @@ if (global['Game'] !== undefined) {
     STRUCTURE_EXTENSION: STRUCTURE_EXTENSION,
     STRUCTURE_ROAD: STRUCTURE_ROAD,
     STRUCTURE_SPAWN: STRUCTURE_SPAWN,
+    STRUCTURE_CONTROLLER: STRUCTURE_CONTROLLER,
+    memory: () => Memory,
   };
 } else {
   // The actual constants are wrong which is good because code should
   // not reply on those values. If they were to there wouldn't be a
   // constant but a string you'd use. They could change so if this
   // causes code to go wrong then it is good because I can catch it.
+  const g_memory = {};
+
   module.exports = {
     _: _,
     WORK: 'work',
@@ -68,5 +72,7 @@ if (global['Game'] !== undefined) {
     STRUCTURE_EXTENSION: 'structure_extension',
     STRUCTURE_ROAD: 'structure_road',
     STRUCTURE_SPAWN: 'structure_spawn',
+    STRUCTURE_CONTROLLER: 'structure_controller',
+    memory: () => g_memory,
   };
 }

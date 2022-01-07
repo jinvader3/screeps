@@ -120,6 +120,10 @@ class CreepGeneralWorker {
       return false;
     }
 
+    if (res === game.ERR_FULL) {
+      return false;
+    }
+
     if (res == game.ERR_NOT_IN_RANGE) {
       let res2 = this.move_to(trgt);
       return true;
@@ -164,12 +168,24 @@ class CreepGeneralWorker {
     console.log('creep mode', this.get_mode(), trgt);
     if (trgt) {
       if (this.get_mode() === 'pull') {
-        if (this.get(trgt) === false) {
+        this.room.reg_get_intent(
+          this,
+          trgt,
+          game.RESOURCE_ENERGY,
+          this.creep.store.getFreeCapacity(game.RESOURCE_ENERGY)
+        );
+        if (this.get(trgt, game.RESOURCE_ENERGY) === false) {
           this.clear_target();
           this.tick(dt_pull, dt_push);
         }
       } else {
-        if (this.put(trgt) === false) {
+        this.room.reg_put_intent(
+          this, 
+          trgt, 
+          game.RESOURCE_ENERGY,
+          this.creep.store.getUsedCapacity(game.RESOURCE_ENERGY)
+        );
+        if (this.put(trgt, game.RESOURCE_ENERGY) === false) {
           this.clear_target();
           this.tick(dt_pull, dt_push);
         }

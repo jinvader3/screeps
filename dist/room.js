@@ -55,27 +55,14 @@ class Room {
   }
 
   tick () {
-    // Do any accounting from registration of resource transfer intentions
-    // on the previous tick.
-    _.each(this.res_xfer_intents, intent => {
-      let creep = game.creeps[intent.creep];
-      let job = this.get_job_by_juid(intent.juid);
-      
-      if (creep === undefined || job === null)
-        return;
-
-      let delta = intent.amount - creep.store.getUsedCapacity(intent.rtype);
-
-      if (delta > 0) {
-        job.amount -= delta;
-      }
-    });
-
     let creep_group_counts = {
       'worker': 0,
       'minera': 0,
       'minerb': 0,
     };
+
+    this.reg_put_intents = [];
+    this.reg_get_intents = [];
 
     _.each(this.creeps, creep => {
       if (creep.creep.memory === undefined) {
@@ -119,7 +106,7 @@ class Room {
       );
     }
 
-    let csites = this.room.find(game.FIND_CONSTRUCTION_SITES);
+    this.csites = this.room.find(game.FIND_CONSTRUCTION_SITES);
     let denergy = _.filter(this.room.find(game.FIND_DROPPED_RESOURCES), 
       i => i.resourceType === game.RESOURCE_ENERGY
     );
@@ -134,7 +121,7 @@ class Room {
 
     let dt_push = [
       this.dt_push_controller_below_ticks(1000),
-      this.dt_push_spawns(0),
+      this.dt_push_spawns(1.0),
       this.dt_push_nearest_csite(),
       this.dt_push_controller_always(),
     ];
@@ -146,6 +133,75 @@ class Room {
         () => this.dt_run(dt_pull, creep), 
         () => this.dt_run(dt_push, creep)
       );
+    }
+  }
+
+  reg_put_intent (creep, trgt, restype, amount) {
+    this.reg_put_intents.push({
+      creep: creep,
+      trgt: trgt.id,
+      restype: restype,
+      amount: amount,
+    });
+  }
+
+  reg_get_intent (creep, trgt, restype, amount) {
+    this.reg_get_intents.push({
+      creep: creep,
+      trgt: trgt.id,
+      restype: restype,
+      amount: amount,
+    });
+  }
+
+  max_get_intent (trgt, restype) {
+    switch (trgt.structureType) {
+      case game.STRUCTURE_SOURCE:
+        if (restype !== game.RESOURCE_ENERGY) {
+          return true;
+        }
+
+        let count = _.sumBy(this.reg_get_intents, i => {
+          if (i.trgt === trgt.id && i.restype === restype) {
+            return 1;
+          }
+          return 0;
+        });
+
+        if (count >= this.get_source_spots(trgt)) {
+          return true;
+        } else {
+          return false;
+        }
+      default:
+        return false;
+    }
+  }
+
+  max_put_intent (trgt, restype) {
+    let amount = _.sumBy(this.reg_put_intents, i => {
+      if (i.trgt === trgt.id && i.restype === restype) {
+        return i.amount;
+      }
+
+      return 0;
+    });
+
+    console.log('intent amount', amount);
+
+    switch (trgt.structureType) {
+      case game.STRUCTURE_CONTROLLER: 
+        if (restype === game.RESOURCE_ENERGY) {
+          // TODO: unless its maxed out in level
+          return false;
+        }
+        return true;
+      case game.STRUCTURE_SPAWN:
+      case game.STRUCTURE_EXTENSION:
+        console.log('@@@', trgt.store.getFreeCapacity(restype));
+        return trgt.store.getFreeCapacity(restype) - amount <= 0;
+      default:
+        return false;
     }
   }
 
@@ -198,13 +254,16 @@ class Room {
       let cy = creep.creep.pos.y;
       let bcsite = null;
       let bdist = null;
+      console.log('dt_push_nearest_csite', this.csites);
       _.each(this.csites, csite => {
+        console.log('checking one csite');
         let x = csite.pos.x;
         let y = csite.pos.y;
-        let cx = x - cx;
-        let cy = y - cy;
-        let dist = Math.sqrt(cx * cx + cy * cy);
+        let dx = x - cx;
+        let dy = y - cy;
+        let dist = Math.sqrt(dx * dx + dy * dy);
         if (bdist === null || dist < bdist) {
+          console.log('found one', dist, csite.id);
           bdist = dist;
           bcsite = csite;
         }
@@ -216,7 +275,18 @@ class Room {
   dt_push_spawns (threshold) {
     return (creep) => {
       let spawns = _.filter(
-        this.spawns, s => s.store.getFreeCapacity(game.RESOURCE_ENERGY) > threshold
+        this.spawns, s => {
+          let free = s.store.getFreeCapacity(game.RESOURCE_ENERGY);
+          let used = s.store.getUsedCapacity(game.RESOURCE_ENERGY);
+          let ratio = used / free;
+          if (ratio < threshold) {
+            console.log('checking max intents');
+            if (!this.max_put_intent(s, game.RESOURCE_ENERGY)) {
+              return true;
+            }
+          }
+          return false;
+        }
       );
       return _.sample(spawns);
     };

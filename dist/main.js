@@ -7,6 +7,12 @@ module.exports.loop = function () {
 
   let rooms = {};
 
+  for (let name in game.memory().creeps) {
+    if (game.creeps()[name] === undefined) {
+      delete game.memory().creeps[name];
+    }
+  }
+
   for (let name in game.rooms()) {
     let room = game.rooms()[name];
     if (room.controller !== undefined && room.controller.my) {
