@@ -428,7 +428,42 @@ test('Room:general4', t => {
   //
 });
 
- /*
+test('Room:general5', t => {
+  let groom = new GhostRoom('E34N32');
+  let so0 = new GhostSource('xmns2');
+
+  groom.add_object(so0);
+
+  so0.energy = 100;
+
+  room = new Room(groom);  
+
+  game.setGetObjectByIdTrampoline(id => {
+    return _.find(groom.objs, obj => obj.id === id);
+  });
+
+  let gcreep0 = new GhostCreep('c392', groom);
+  gcreep0.memory.c = 'miner';
+  gcreep0.memory.s = so0.id;
+  room.add_creep(gcreep0);
+
+  let ca = false;
+
+  gcreep0.harvest = (trgt) => {
+    if (trgt.id === 'xmns2') {
+      ca = true;
+    }
+    return game.OK;
+  };
+
+  room.tick();
+
+  t.truthy(ca);
+
+  t.pass();
+});
+
+  /*
 test('bar', async t => {
   // t.fail()
   // t.pass()

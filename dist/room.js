@@ -74,7 +74,6 @@ class Room {
       creep_group_counts[creep.creep.memory.g]++;
     });
 
-    /*
     if (creep_group_counts.minera < 1 && this.spawns.length > 0) {
       this.spawns[0].spawnCreep(
         [game.WORK, game.WORK, game.WORK, game.MOVE, game.MOVE, game.MOVE],
@@ -94,7 +93,6 @@ class Room {
         }
       );
     }
-    */
 
     if (creep_group_counts.worker < 6 && this.spawns.length > 0) {
       this.spawns[0].spawnCreep(
