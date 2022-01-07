@@ -121,11 +121,15 @@ class Room {
     _.each(this.sources, source => sources_and_denergy.push(source));
     _.each(denergy, i => sources_and_denergy.push(i));
 
+    // This is the decision tree for energy pulls. Where do I get
+    // energy from?
     let dt_pull = [
       this.dt_pull_energy_nearby_sources(),
       this.dt_pull_sources(),
     ];
 
+    // This is the decision tree for energy pushes. Where do I take
+    // the energy to?
     let dt_push = [
       this.dt_push_controller_below_ticks(1000),
       this.dt_push_spawns(1.0),
@@ -138,6 +142,7 @@ class Room {
     for (let ndx in this.creeps) {
       let creep = this.creeps[ndx];
       console.log('ticking creep');
+      // Provide each creep with the decision tree entry function.
       creep.tick(
         () => this.dt_run(dt_pull, creep), 
         () => this.dt_run(dt_push, creep)
@@ -269,7 +274,7 @@ class Room {
           game.LOOK_ENERGY, pos.y - 1, pos.x - 1, pos.y + 1, pos.x + 1, true
         );
         console.log('energy near source', energy.length);
-        _.each(energy, i => iv.push(i));
+        _.each(energy, i => iv.push(i.energy));
         return iv;
       }, []);
       energy = _.filter(energy, e => {

@@ -52,10 +52,21 @@ class CreepGeneralWorker {
       return false;
     }
 
-    let res = this.creep.harvest(trgt);
+    let res = this.creep.pickup(trgt);
 
-    if (res == game.OK) {
+    if (res === game.OK) {
       return true;
+    }
+
+    if (res === game.ERR_FULL) {
+      return false;
+    }
+
+    if (res === game.ERR_INVALID_TARGET) {
+      res = this.creep.harvest(trgt);
+      if (res === game.OK) {
+        return true;
+      }
     }
 
     if (res === game.ERR_NOT_ENOUGH_RESOURCES) {
