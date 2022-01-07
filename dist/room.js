@@ -106,6 +106,14 @@ class Room {
       );
     }
 
+    this.exts = [];
+
+    _.each(this.room.find(game.FIND_STRUCTURES), s => {
+      if (s.structureType === game.STRUCTURE_EXTENSION) {
+        this.exts.push(s);
+      }
+    });
+
     this.csites = this.room.find(game.FIND_CONSTRUCTION_SITES);
     let denergy = _.filter(this.room.find(game.FIND_DROPPED_RESOURCES), 
       i => i.resourceType === game.RESOURCE_ENERGY
@@ -116,12 +124,15 @@ class Room {
     _.each(denergy, i => sources_and_denergy.push(i));
 
     let dt_pull = [
+      this.dt_pull_energy_nearby_sources(),
       this.dt_pull_sources(),
     ];
 
     let dt_push = [
       this.dt_push_controller_below_ticks(1000),
       this.dt_push_spawns(1.0),
+      this.dt_push_extensions(1.0),
+      this.dt_push_road_repair_nearby(0.5),
       this.dt_push_nearest_csite(),
       this.dt_push_controller_always(),
     ];
@@ -154,7 +165,29 @@ class Room {
     });
   }
 
+  sum_get_intent (trgt, restype) {
+    return _.sumBy(this.reg_get_intents, i => {
+      if (i.trgt === trgt.id && i.restype === restype) {
+        return i.amount;
+      }
+      return 0;
+    });
+  }
+
   max_get_intent (trgt, restype) {
+    if (trgt.resourceType !== undefined && trgt.resourceType === restype) {
+      let amount = _.sumBy(this.reg_get_intents, i => {
+        if (i.trgt === trgt.id && i.restype === restype) {
+          return i.amount;
+        }
+        return 0;
+      });
+
+      console.log('max_get_intent amount=' + amount);
+
+      return amount >= trgt.amount;
+    }
+
     switch (trgt.structureType) {
       case game.STRUCTURE_SOURCE:
         if (restype !== game.RESOURCE_ENERGY) {
@@ -208,10 +241,44 @@ class Room {
   dt_pull_sources () {
     return (creep) => {
       console.log('dt_pull_sources');
-      _.each(this.sources, s => {
-        console.log('@', s.energy);
+      let sources = _.filter(this.sources, s => {
+        return this.sum_get_intent(s, game.RESOURCE_ENERGY) < s.energy;
       });
-      return _.sample(_.filter(this.sources, s => s.energy > 0));
+      return _.sample(_.filter(sources, s => s.energy > 0));
+    };
+  }
+
+  dt_push_road_repair_nearby (threshold) {
+    return (creep) => {
+      let pos = creep.creep.pos;
+      let structs = this.room.lookForAtArea(
+        game.LOOK_STRUCTURES, pos.y - 3, pos.x - 3, pos.y + 3, pos.x + 3, true
+      );
+      let roads = _.filter(structs, s => s.structureType === game.STRUCTURE_ROAD);
+      let road = _.find(roads, road => {
+        let ratio = road.hits / ratio.hitsMax;
+        return ratio < threshold;
+      });
+      return road;
+    };
+  }
+  
+  dt_pull_energy_nearby_sources () {
+    return (creep) => {
+      let energy = _.reduce(this.sources, (iv, source) => {
+        let pos = source.pos;
+        let energy = this.room.lookForAtArea(
+          game.LOOK_ENERGY, pos.y - 1, pos.x - 1, pos.y + 1, pos.x + 1, true
+        );
+        console.log('energy near source', energy.length);
+        _.each(energy, i => iv.push(i));
+        return iv;
+      }, []);
+      energy = _.filter(energy, e => {
+        return !this.max_get_intent(e, game.RESOURCE_ENERGY);
+      });
+      console.log('???', energy.length);
+      return _.sample(energy);
     };
   }
 
@@ -269,6 +336,26 @@ class Room {
         }
       });
       return bcsite;
+    };
+  }
+
+  dt_push_extensions (threshold) {
+    return (creep) => {
+      let exts = _.filter(
+        this.exts, s => {
+          let free = s.store.getFreeCapacity(game.RESOURCE_ENERGY);
+          let used = s.store.getUsedCapacity(game.RESOURCE_ENERGY);
+          let ratio = used / free;
+          if (ratio < threshold) {
+            console.log('checking max intents');
+            if (!this.max_put_intent(s, game.RESOURCE_ENERGY)) {
+              return true;
+            }
+          }
+          return false;
+        }
+      );
+      return _.sample(exts);
     };
   }
 

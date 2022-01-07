@@ -36,6 +36,7 @@ if (global['Game'] !== undefined) {
     ERR_NOT_ENOUGH_RESOURCES: ERR_NOT_ENOUGH_RESOURCES,
     ERR_FULL: ERR_FULL,
     OK: OK,
+    FIND_STRUCTURES: FIND_STRUCTURES,
     FIND_CONSTRUCTION_SITES: FIND_CONSTRUCTION_SITES,
     rooms: () => Game.rooms,
     creeps: () => Game.creeps,
@@ -43,6 +44,8 @@ if (global['Game'] !== undefined) {
     STRUCTURE_ROAD: STRUCTURE_ROAD,
     STRUCTURE_SPAWN: STRUCTURE_SPAWN,
     STRUCTURE_CONTROLLER: STRUCTURE_CONTROLLER,
+    LOOK_STRUCTURES: LOOK_STRUCTURES,
+    LOOK_ENERGY: LOOK_ENERGY,
     memory: () => Memory,
   };
 } else {
@@ -65,6 +68,7 @@ if (global['Game'] !== undefined) {
     ERR_NOT_IN_RANGE: 'err_not_in_range',
     ERR_NOT_ENOUGH_RESOURCES: 'err_not_enough_resources',
     ERR_FULL: 'err_full',
+    FIND_STRUCTURES: 'find_structures',
     FIND_CONSTRUCTION_SITES: 'find_construction_sites',
     OK: 'ok',
     getObjectById: () => getObjectByIdTrampoline,
@@ -73,6 +77,8 @@ if (global['Game'] !== undefined) {
     STRUCTURE_ROAD: 'structure_road',
     STRUCTURE_SPAWN: 'structure_spawn',
     STRUCTURE_CONTROLLER: 'structure_controller',
+    LOOK_STRUCTURES: 'look_structures',
+    LOOK_ENERGY: 'look_energy',
     memory: () => g_memory,
   };
 }

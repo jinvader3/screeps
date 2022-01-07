@@ -115,6 +115,10 @@ class GhostSource {
     this.id = id;
     this.__type = 'source';
     this.structureType = game.STRUCTURE_SOURCE;
+    this.pos = {
+      x: 0,
+      y: 0,
+    };
     this.energy = 0;
   }
 }
@@ -140,6 +144,37 @@ class GhostRoom {
 
   add_object (obj) {
     this.objs[obj.id] = obj;
+  }
+
+  lookForAtArea (what, top, left, right, bottom, array) {
+    if (array === false) {
+      throw new Error();
+    }
+
+    return _.filter(this.objs, obj => {
+      if (obj.pos === undefined) {
+        return false;
+      }
+
+      let ox = obj.pos.x;
+      let oy = obj.pos.y;
+
+      if (oy < top || oy > bottom) {
+        return false;
+      }
+
+      if (ox < left || ox > right) {
+        return false;
+      }
+
+      if (what === game.LOOK_ENERGY) {
+        if (obj.resourceType !== undefined) {
+          return true;
+        }
+      }
+
+      return false;
+    });
   }
 
   find (what) {
@@ -301,6 +336,15 @@ test('Room:general4', t => {
   //groom.add_object(ct0);
 
   so0.energy = 100;
+  so0.pos = {
+    x: 5,
+    y: 5,
+  };
+
+  so1.pos = {
+    x: 10,
+    y: 10,
+  };
 
   room = new Room(groom);  
 
@@ -321,6 +365,7 @@ test('Room:general4', t => {
   sp0.store.set_resource(game.RESOURCE_ENERGY, 0, 100);
 
   gcreep0.harvest = (trgt) => { 
+    console.log('harvest called');
     ca = true; 
     return game.OK 
   };
@@ -329,17 +374,58 @@ test('Room:general4', t => {
   cs0.pos = { x: 5, y: 5 };
 
   let cb = false;
+  let cc = false;
+
   gcreep0.upgradeController = (trgt) => { 
+    if (trgt.id === 'sp32')
+      cb = true;
     console.log('creep0 upgrade');
+    gcreep0.store.set_resource(game.RESOURCE_ENERGY, 0, 100);
     return game.OK; 
   };
 
   gcreep1.upgradeController = (trgt) => {
+    if (trgt.id === 'cs22')
+      cc = true;
     console.log('creep1 upgrade');
+    gcreep1.store.set_resource(game.RESOURCE_ENERGY, 0, 100);
     return game.OK;
   };
 
   room.tick();
+  t.truthy(!ca && cb && cc);
+
+  // Now, both creeps are out of energy. One should seek
+  // out the source and the other some dropped energy.
+  groom.add_object({
+    id: 'de32',
+    resourceType: game.RESOURCE_ENERGY,
+    amount: 100,
+    pos: {
+      x: 5,
+      y: 4,
+    },
+  });
+  so0.energy = 100;
+  //
+  ca = false;
+  cb = false;
+  //
+  gcreep0.harvest = (trgt) => { 
+    console.log('harvest', trgt.id);
+    if (trgt.id === 'de32')
+      ca = true; 
+    if (trgt.id === 'xmns2')
+      cb = true;
+    return game.OK 
+  };
+  //
+  gcreep1.harvest = gcreep0.harvest;
+  //
+  room.tick();
+  //
+  t.truthy(ca && cb);
+  //
 });
 
  /*

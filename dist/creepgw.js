@@ -87,7 +87,23 @@ class CreepGeneralWorker {
       return false;
     }
 
-    let res = this.creep.upgradeController(trgt);
+    let res;
+
+    if (trgt.hits !== undefined && trgt.hits < trgt.hitsMax) {
+      res = this.creep.repair(trgt);
+
+      if (res === game.OK) {
+        return true;
+      }
+
+      if (res === game.ERR_NOT_ENOUGH_RESOURCES) {
+        return false;
+      }
+    } else {
+      res = game.ERR_INVALID_TARGET;
+    }
+
+    res = this.creep.upgradeController(trgt);
 
     if (res === game.OK) {
       return true;
