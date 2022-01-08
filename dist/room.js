@@ -3,6 +3,8 @@ _ = game._;
 const { CreepGeneralWorker } = require('./creepgw');
 const { CreepDummy } = require('./creepdummy');
 const { CreepMiner } = require('./creepminer');
+const { CreepFighter } = require('./creepfighter');
+const { CreepClaimer } = require('./creepclaimer');
 
 class Room {
   constructor (room) {
@@ -19,15 +21,17 @@ class Room {
     this.res_xfer_intents = this.room.memory.res_xfer_intents;
   }
 
-  request_build_creep (ruid, body_unit, unit_min, unit_max, clazz, priority) {
+  request_build_creep (ruid, body_unit, unit_min, unit_max, group, group_count, priority, memory) {
     if (!_.some(this.breq, breq => {
       if (breq.ruid === ruid) {
-        breq.body_unit = body_unit;
-        breq.unit_min = unit_min;
-        breq.unit_max = unit_max;
-        breq.clazz = clazz;
-        breq.priority = priority;
-        return true;
+          breq.body_unit = body_unit;
+          breq.unit_min = unit_min;
+          breq.unit_max = unit_max;
+          breq.group = group;
+          breq.group_count = group_count;
+          breq.priority = priority;
+          breq.memory = memory
+          return true;
         } else { 
           return false 
         }
@@ -50,16 +54,23 @@ class Room {
     switch (creep.memory.c) {
       case 'gw': this.creeps.push(new CreepGeneralWorker(this, creep)); break;
       case 'miner': this.creeps.push(new CreepMiner(this, creep)); break;
+      case 'fighter': this.creeps.push(new CreepFighter(this, creep)); break;
+      case 'claimer': this.creeps.push(new CreepClaimer(this, creep)); break;
       default: this.creeps.push(new CreepDummy(this, creep)); break;
     }
   }
 
-  tick () {
+  tick_need_spawn () {
     let creep_group_counts = {
       'worker': 0,
       'minera': 0,
       'minerb': 0,
+      'fighter': 0,
     };
+
+    function group_count (gname) {
+      return creep_group_counts[gname] || 0;
+    }
 
     this.reg_put_intents = [];
     this.reg_get_intents = [];
@@ -76,7 +87,7 @@ class Room {
 
     if (creep_group_counts.minera < 1 && this.spawns.length > 0) {
       this.spawns[0].spawnCreep(
-        [game.WORK, game.WORK, game.WORK, game.MOVE, game.MOVE, game.MOVE],
+        [game.WORK, game.WORK, game.WORK, game.WORK, game.WORK, game.MOVE],
         this.room.name + ':' + game.time(),
         {
           memory: { 'c': 'miner', 'g': 'minera', 's': this.sources[0].id },
@@ -86,7 +97,7 @@ class Room {
 
     if (creep_group_counts.minerb < 1 && this.sources.length > 1 && this.spawns.length > 0) {
       this.spawns[0].spawnCreep(
-        [game.WORK, game.WORK, game.WORK, game.MOVE, game.MOVE, game.MOVE],
+        [game.WORK, game.WORK, game.WORK, game.WORK, game.WORK, game.MOVE],
         this.room.name + ':' + game.time(),
         {
           memory: { 'c': 'miner', 'g': 'minerb', 's': this.sources[1].id },
@@ -94,21 +105,139 @@ class Room {
       );
     }
 
-    if (creep_group_counts.worker < 6 && this.spawns.length > 0) {
+    let tclaim = 'E56S31';
+
+    console.log('tclaim', tclaim);
+    console.log('our-room', game.rooms()[tclaim]);
+    if (game.rooms()[tclaim] !== undefined) {
+      console.log('our-room', game.rooms()[tclaim].controller.my);
+    }
+    console.log('creep_group_counts', creep_group_counts['claimer_' + tclaim]);
+
+    if (
+      // If the room is not claimed by us and we do not have at least
+      // one claimer built then build one.
+      (!game.rooms()[tclaim] || !game.rooms()[tclaim].controller.my) &&
+      group_count('claimer_' + tclaim) < 1
+      ) {
+      console.log('trying to build claimer');
       this.spawns[0].spawnCreep(
-        [game.WORK, game.CARRY, game.MOVE, game.MOVE],
+        [game.MOVE, game.CLAIM],
         this.room.name + ':' + game.time(),
         {
-          memory: { 'c': 'gw', 'g': 'worker', 's': this.sources[1].id },
+          memory: {
+            'c': 'claimer',
+            'g': 'claimer_' + tclaim,
+            'tr': tclaim,
+          },
         }
       );
     }
 
+    if (game.rooms()[tclaim] && game.rooms()[tclaim].controller.my) {
+      let troom = game.rooms()[tclaim];
+
+      if (troom.find(FIND_MY_SPAWNS).length == 0) {
+        if (group_count('claimer_' + tclaim) < 4) {
+          console.log('trying to spawn claimer to create spawn');
+          this.spawns[0].spawnCreep(
+            [game.MOVE, game.MOVE, game.work, game.CARRY],
+            this.room.name + ':' + game.time(),
+            {
+              memory: {
+                'c': 'claimer',
+                'g': 'claimer_' + tclaim,
+                'tr': tclaim,
+              }
+            }
+          );
+        }
+      }
+    }
+
+    if (creep_group_counts.fighter1 < 4 && this.spawns.length > 0) {
+      this.spawns[0].spawnCreep(
+        [game.ATTACK, game.MOVE],
+        this.room.name + ':' + game.time(),
+        {
+          memory: { 'c': 'fighter', 'g': 'fighter1', 'tr': 'E56S32' },
+        }
+      );
+    }
+
+    // Need a total work and carry power of 6 by 6 no fewer than 2 creeps.
+    let work_power = 0;
+    let carry_power = 0;
+
+    _.each(this.creeps, creep => {
+      //if (creep.creep.memory.c === 'fighter') {
+      //  creep.creep.memory.tr = 'E56S32';
+      //}
+
+      if (creep.creep.memory.c !== 'gw') {
+        return;
+      }
+      _.each(creep.creep.body, part => {
+        if (part.type === game.WORK) {
+          work_power++;
+        }
+        if (part.type === game.CARRY) {
+          carry_power++;
+        }
+      });
+    });
+
+    let need_another = creep_group_counts.worker < 2 ||
+                       work_power < 8 || carry_power < 8;
+
+    if (creep_group_counts.worker >= 6) {
+      need_another = false;
+    }
+
+    console.log('work_power', work_power);
+    console.log('carry_power', carry_power);
+    console.log('need_another', need_another);
+
+    if (need_another) {
+      let ea = this.room.energyCapacityAvailable;
+      // WORK, CARRY, MOVE, MOVE is one unit
+      let unit_cost = 100 + 50 + 50 + 50;
+      let unit_count = Math.floor(ea / unit_cost);
+      let body_spec = [];
+
+      for (let x = 0; x < unit_count; ++x) {
+        body_spec.push(game.WORK);
+        body_spec.push(game.CARRY);
+        body_spec.push(game.MOVE);
+        body_spec.push(game.MOVE);
+      }
+
+      this.spawns[0].spawnCreep(
+        body_spec,
+        this.room.name + ':' + game.time(),
+        {
+          memory: { 'c': 'gw', 'g': 'worker' },
+        }
+      );
+    }
+
+  }
+
+  tick () {
+    // Do all the housework that requires a spawn here.
+    if (this.spawns.length > 0) {
+      this.tick_need_spawn();
+    }
+
     this.exts = [];
+    this.towers = [];
+    this.spawns = [];
 
     _.each(this.room.find(game.FIND_STRUCTURES), s => {
-      if (s.structureType === game.STRUCTURE_EXTENSION) {
-        this.exts.push(s);
+      switch (s.structureType) {
+        case game.STRUCTURE_EXTENSION: this.exts.push(s); return;
+        case game.STRUCTURE_TOWER: this.towers.push(s); return;
+        case game.STRUCTURE_SPAWN: this.spawns.push(s); return;
       }
     });
 
@@ -121,6 +250,13 @@ class Room {
     _.each(this.sources, source => sources_and_denergy.push(source));
     _.each(denergy, i => sources_and_denergy.push(i));
 
+    // Quick and dirty tower code.
+    this.hcreeps = this.room.find(game.FIND_HOSTILE_CREEPS);
+    if (this.hcreeps.length > 0) {
+      let fhcreep = this.hcreeps[0];
+      _.each(this.towers, tower => tower.attack(fhcreep));
+    }
+
     // This is the decision tree for energy pulls. Where do I get
     // energy from?
     let dt_pull = [
@@ -132,8 +268,9 @@ class Room {
     // the energy to?
     let dt_push = [
       this.dt_push_controller_below_ticks(1000),
-      this.dt_push_spawns(1.0),
-      this.dt_push_extensions(1.0),
+      this.dt_push_to_objects_with_stores(1.0, this.spawns),
+      this.dt_push_to_objects_with_stores(1.0, this.exts),
+      this.dt_push_to_objects_with_stores(1.0, this.towers),
       this.dt_push_road_repair_nearby(0.5),
       this.dt_push_nearest_csite(),
       this.dt_push_controller_always(),
@@ -141,7 +278,6 @@ class Room {
 
     for (let ndx in this.creeps) {
       let creep = this.creeps[ndx];
-      console.log('ticking creep');
       // Provide each creep with the decision tree entry function.
       creep.tick(
         () => this.dt_run(dt_pull, creep), 
@@ -186,8 +322,6 @@ class Room {
         return 0;
       });
 
-      console.log('max_get_intent amount=' + amount);
-
       return amount >= trgt.amount;
     }
 
@@ -223,8 +357,6 @@ class Room {
       return 0;
     });
 
-    console.log('intent amount', amount);
-
     switch (trgt.structureType) {
       case game.STRUCTURE_CONTROLLER: 
         if (restype === game.RESOURCE_ENERGY) {
@@ -234,7 +366,6 @@ class Room {
         return true;
       case game.STRUCTURE_SPAWN:
       case game.STRUCTURE_EXTENSION:
-        console.log('@@@', trgt.store.getFreeCapacity(restype));
         return trgt.store.getFreeCapacity(restype) - amount <= 0;
       default:
         return false;
@@ -243,7 +374,6 @@ class Room {
 
   dt_pull_sources () {
     return (creep) => {
-      console.log('dt_pull_sources');
       let sources = _.filter(this.sources, s => {
         return this.sum_get_intent(s, game.RESOURCE_ENERGY) < s.energy;
       });
@@ -273,14 +403,12 @@ class Room {
         let energy = this.room.lookForAtArea(
           game.LOOK_ENERGY, pos.y - 1, pos.x - 1, pos.y + 1, pos.x + 1, true
         );
-        console.log('energy near source', energy.length);
         _.each(energy, i => iv.push(i.energy));
         return iv;
       }, []);
       energy = _.filter(energy, e => {
         return !this.max_get_intent(e, game.RESOURCE_ENERGY);
       });
-      console.log('???', energy.length);
       return _.sample(energy);
     };
   }
@@ -306,7 +434,6 @@ class Room {
   }
 
   dt_run (dt, creep) {
-    console.log('dt_run');
     for (let x = 0; x < dt.length; ++x) {
       let dte = dt[x];
       let trgt = dte(creep);
@@ -324,16 +451,13 @@ class Room {
       let cy = creep.creep.pos.y;
       let bcsite = null;
       let bdist = null;
-      console.log('dt_push_nearest_csite', this.csites);
       _.each(this.csites, csite => {
-        console.log('checking one csite');
         let x = csite.pos.x;
         let y = csite.pos.y;
         let dx = x - cx;
         let dy = y - cy;
         let dist = Math.sqrt(dx * dx + dy * dy);
         if (bdist === null || dist < bdist) {
-          console.log('found one', dist, csite.id);
           bdist = dist;
           bcsite = csite;
         }
@@ -342,6 +466,28 @@ class Room {
     };
   }
 
+  dt_push_to_objects_with_stores (threshold, objlist) {
+    return (creep) => {
+      let valids = _.filter(
+        objlist, s => {
+          let free = s.store.getFreeCapacity(game.RESOURCE_ENERGY);
+          let used = s.store.getUsedCapacity(game.RESOURCE_ENERGY);
+          let ratio = used / (used + free);
+          if (ratio < threshold) {
+            if (!this.max_put_intent(s, game.RESOURCE_ENERGY)) {
+              return true;
+            }
+          }
+          return false;
+        }
+      );
+      return _.sample(valids);
+    };
+  }
+
+  /*
+   * OBSOLETE BY: dt_push_to_objects_with_stores
+   *
   dt_push_extensions (threshold) {
     return (creep) => {
       let exts = _.filter(
@@ -350,7 +496,6 @@ class Room {
           let used = s.store.getUsedCapacity(game.RESOURCE_ENERGY);
           let ratio = used / free;
           if (ratio < threshold) {
-            console.log('checking max intents');
             if (!this.max_put_intent(s, game.RESOURCE_ENERGY)) {
               return true;
             }
@@ -370,7 +515,6 @@ class Room {
           let used = s.store.getUsedCapacity(game.RESOURCE_ENERGY);
           let ratio = used / free;
           if (ratio < threshold) {
-            console.log('checking max intents');
             if (!this.max_put_intent(s, game.RESOURCE_ENERGY)) {
               return true;
             }
@@ -381,6 +525,7 @@ class Room {
       return _.sample(spawns);
     };
   }
+  */
 
   count_source_spots (src) {
     let spots = this.room.lookAtArea(

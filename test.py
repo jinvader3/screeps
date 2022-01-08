@@ -7,6 +7,8 @@ import time
 import logging
 import threading
 import queue
+import traceback
+import sys
 
 class MySocket(screepsapi.Socket):
   def __init__(self, user, pw, eque):
@@ -15,7 +17,7 @@ class MySocket(screepsapi.Socket):
 
   def set_subscriptions(self):
     self.subscribe_user('console')
-    self.subscribe('room:shard3/E53S13')
+    self.subscribe('room:shard3/E57S33')
 
   def process_log(self, ws, msg, shard):
     self.eque.put({ 'topic': 'log', 'msg': msg, 'shard': shard })
@@ -143,13 +145,31 @@ class Program:
 
     h, w = self.win.getmaxyx()
     
-    log_sect = self.log[-(h-1):][::-1]
+    log_sect = self.log[-(h-1):]
+    nlog_sect = []
 
+    # Chop the lines from the server into more lines
+    # if needed to pack everything between the max
+    # number of columns.
     for x in range(0, len(log_sect)):
-        msg = log_sect[x][0:w]
-        msg = msg + (' ' * (w - len(msg) - 1))
-        self.win.addnstr(1 + x, 0, msg, w)
-        self.win.noutrefresh()
+        e = log_sect[x]
+        while len(e) > w:
+            se = e[0:w]
+            nlog_sect.append(se)
+            e = e[w:]
+        nlog_sect.append(e)
+
+    #nlog_sect = nlog_sect[::-1]
+
+    with open('condbg.log', 'a') as fd:
+        for x in range(0, len(nlog_sect)):
+            msg = nlog_sect[x][0:w]
+            msg = msg + (' ' * (w - len(msg) - 1))
+            try:
+                self.win.addnstr(1 + x, 0, msg, w)
+                self.win.noutrefresh()
+            except:
+                pass
 
   def show_panel_room(self, key):
     self.win.clear()
@@ -202,6 +222,9 @@ def main(win, args):
   except Exception as e:
     logging.warning('[EXCEPTION]')
     logging.warning(str(e))
+    exc_type, exc_value, exc_tb = sys.exc_info()
+    for line in traceback.format_list(traceback.extract_tb(exc_tb)):
+        logging.warning(line)
 
 if __name__ == '__main__':
   logging.basicConfig(
@@ -209,6 +232,7 @@ if __name__ == '__main__':
     filemode='w', 
     level=logging.INFO
   )
+
   logging.info('Logging has started.')
   ap = argparse.ArgumentParser()
   ap.add_argument('--user', type=str, required=True)

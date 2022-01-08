@@ -137,7 +137,8 @@ class CreepGeneralWorker {
 
     if (res === game.ERR_INVALID_TARGET) {
       let amount = this.creep.store.getUsedCapacity(restype);
-      res = this.creep.transfer(trgt, restype, amount);
+      let most = trgt.store.getFreeCapacity(restype);
+      res = this.creep.transfer(trgt, restype, Math.min(amount, most));
       if (res === game.OK) {
         return true;
       }
@@ -177,7 +178,14 @@ class CreepGeneralWorker {
     console.log.apply(console, args);
   }
 
-  tick (dt_pull, dt_push) {
+  tick (dt_pull, dt_push, cdepth) {
+    if (cdepth === undefined) {
+      cdepth = 0;
+    } else if (cdepth >= 4) {
+      console.log('[problem] tick on creepgw call graph depth exceeded');
+      return;
+    }
+
     let trgt = this.get_target();
     let ecarry = this.creep.store.getUsedCapacity(game.RESOURCE_ENERGY);
     if (!trgt) {
@@ -192,7 +200,6 @@ class CreepGeneralWorker {
       this.set_target(trgt);
     }
 
-    console.log('creep mode', this.get_mode(), trgt);
     if (trgt) {
       if (this.get_mode() === 'pull') {
         this.room.reg_get_intent(
@@ -203,7 +210,7 @@ class CreepGeneralWorker {
         );
         if (this.get(trgt, game.RESOURCE_ENERGY) === false) {
           this.clear_target();
-          this.tick(dt_pull, dt_push);
+          this.tick(dt_pull, dt_push, cdepth + 1);
         }
       } else {
         this.room.reg_put_intent(
@@ -214,7 +221,7 @@ class CreepGeneralWorker {
         );
         if (this.put(trgt, game.RESOURCE_ENERGY) === false) {
           this.clear_target();
-          this.tick(dt_pull, dt_push);
+          this.tick(dt_pull, dt_push, cdepth + 1);
         }
       }
     }
