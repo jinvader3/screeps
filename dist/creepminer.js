@@ -7,6 +7,10 @@ class CreepMiner {
     this.room = room;
   }
 
+  get_name () {
+    return this.creep.name;
+  }
+
   move_to (trgt) {
     return this.creep.moveTo(trgt);
   }

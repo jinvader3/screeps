@@ -52,11 +52,21 @@ class Room {
 
   add_creep (creep) {
     switch (creep.memory.c) {
-      case 'gw': this.creeps.push(new CreepGeneralWorker(this, creep)); break;
-      case 'miner': this.creeps.push(new CreepMiner(this, creep)); break;
-      case 'fighter': this.creeps.push(new CreepFighter(this, creep)); break;
-      case 'claimer': this.creeps.push(new CreepClaimer(this, creep)); break;
-      default: this.creeps.push(new CreepDummy(this, creep)); break;
+      case 'gw': 
+        this.creeps.push(new CreepGeneralWorker(this, creep));
+        break;
+      case 'miner': 
+        this.creeps.push(new CreepMiner(this, creep));
+        break;
+      case 'fighter': 
+        this.creeps.push(new CreepFighter(this, creep));
+        break;
+      case 'claimer': 
+        this.creeps.push(new CreepClaimer(this, creep));
+        break;
+      default: 
+        this.creeps.push(new CreepDummy(this, creep));
+        break;
     }
   }
 
@@ -95,7 +105,10 @@ class Room {
       );
     }
 
-    if (creep_group_counts.minerb < 1 && this.sources.length > 1 && this.spawns.length > 0) {
+    if (
+      creep_group_counts.minerb < 1 && 
+      this.sources.length > 1 && 
+      this.spawns.length > 0) {
       this.spawns[0].spawnCreep(
         [game.WORK, game.WORK, game.WORK, game.WORK, game.WORK, game.MOVE],
         this.room.name + ':' + game.time(),
@@ -106,13 +119,6 @@ class Room {
     }
 
     let tclaim = 'E56S31';
-
-    console.log('tclaim', tclaim);
-    console.log('our-room', game.rooms()[tclaim]);
-    if (game.rooms()[tclaim] !== undefined) {
-      console.log('our-room', game.rooms()[tclaim].controller.my);
-    }
-    console.log('creep_group_counts', creep_group_counts['claimer_' + tclaim]);
 
     /*
     if (
@@ -191,16 +197,17 @@ class Room {
       });
     });
 
-    let need_another = creep_group_counts.worker < 2 ||
-                       work_power < 8 || carry_power < 8;
+    let need_another = 
+      creep_group_counts.worker < 2 ||
+      work_power < 8 || 
+      carry_power < 8;
 
     if (creep_group_counts.worker >= 6) {
       need_another = false;
     }
 
-    console.log('work_power', work_power);
-    console.log('carry_power', carry_power);
-    console.log('need_another', need_another);
+    console.log(`WORK-PWR[${work_power}] CARRY-PWR[${carry_power}]`);
+    console.log(`NEED_ANOTHER_WORKER=${need_another}`);
 
     if (need_another) {
       let ea = this.room.energyCapacityAvailable;
@@ -224,7 +231,6 @@ class Room {
         }
       );
     }
-
   }
 
   tick (task) {
@@ -282,11 +288,12 @@ class Room {
 
     for (let ndx in this.creeps) {
       let creep = this.creeps[ndx];
-      // Provide each creep with the decision tree entry function.
-      creep.tick(
-        () => this.dt_run(dt_pull, creep), 
-        () => this.dt_run(dt_push, creep)
-      );
+      task.spawn(0, `creep:${creep.get_name()}`, ctask => {
+        creep.tick(
+          () => this.dt_run(dt_pull, creep), 
+          () => this.dt_run(dt_push, creep)
+        );
+      });
     }
   }
 

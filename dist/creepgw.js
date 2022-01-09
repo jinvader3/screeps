@@ -7,6 +7,10 @@ class CreepGeneralWorker {
     this.room = room;
   }
 
+  get_name () {
+    return this.creep.name;
+  }
+
   get_mode () {
     let mode = this.creep.memory.m;
     if (mode === undefined || mode === null) {

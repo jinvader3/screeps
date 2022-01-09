@@ -51,6 +51,7 @@ if (global['Game'] !== undefined) {
     LOOK_STRUCTURES: LOOK_STRUCTURES,
     LOOK_ENERGY: LOOK_ENERGY,
     memory: () => Memory,
+    cpu: () => Game.cpu,
   };
 } else {
   // The actual constants are wrong which is good because code should
@@ -58,11 +59,22 @@ if (global['Game'] !== undefined) {
   // constant but a string you'd use. They could change so if this
   // causes code to go wrong then it is good because I can catch it.
   const g_memory = {};
+  let g_cpu_used = 0;
+  const g_cpu = {
+    getUsed: () => g_cpu_used,
+    setUsed: (v) => {
+      g_cpu_used = v;
+    },
+  };
+
+  const g_creeps = {};
+  const g_rooms = {};
 
   module.exports = {
     _: _,
-    rooms: () => { return {} },
-    creeps: () => { return {} },
+    cpu: () => g_cpu,
+    rooms: () => g_rooms,
+    creeps: () => g_creeps,
     WORK: 'work',
     MOVE: 'move',
     CARRY: 'carry',

@@ -3,6 +3,10 @@ class CreepDummy {
     this.creep = creep;
   }
 
+  get_name () {
+    return this.creep.name;
+  }
+
   tick () {
     console.log('creep dummy tick');
   }

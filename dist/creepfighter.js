@@ -7,6 +7,10 @@ class CreepFighter {
     this.room = room;
   }
 
+  get_name () {
+    return this.creep.name;
+  }
+
   get_target_room () {
     return this.creep.memory.tr;
   }
