@@ -131,7 +131,7 @@ class TaskEngine {
   }
 
   spawn (priority, name, f) {
-    let nt = this.root_task.spawn(
+    let nt = this.root_task.spawn_isolated(
       priority, name, f
     );
     return nt;
