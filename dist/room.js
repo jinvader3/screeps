@@ -114,6 +114,7 @@ class Room {
     }
     console.log('creep_group_counts', creep_group_counts['claimer_' + tclaim]);
 
+    /*
     if (
       // If the room is not claimed by us and we do not have at least
       // one claimer built then build one.
@@ -133,6 +134,7 @@ class Room {
         }
       );
     }
+    */
 
     if (game.rooms()[tclaim] && game.rooms()[tclaim].controller.my) {
       let troom = game.rooms()[tclaim];
@@ -155,6 +157,7 @@ class Room {
       }
     }
 
+    /*
     if (creep_group_counts.fighter1 < 4 && this.spawns.length > 0) {
       this.spawns[0].spawnCreep(
         [game.ATTACK, game.MOVE],
@@ -164,6 +167,7 @@ class Room {
         }
       );
     }
+    */
 
     // Need a total work and carry power of 6 by 6 no fewer than 2 creeps.
     let work_power = 0;
@@ -223,7 +227,7 @@ class Room {
 
   }
 
-  tick () {
+  tick (task) {
     // Do all the housework that requires a spawn here.
     if (this.spawns.length > 0) {
       this.tick_need_spawn();

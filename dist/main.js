@@ -1,6 +1,7 @@
 const game = require('./game');
 const _ = game._;
 const { Room } = require('./room');
+const { TaskEngine } = require('./task');
 
 module.exports.loop = function () {
   console.log('main loop');
@@ -28,8 +29,16 @@ module.exports.loop = function () {
     rooms[rn].add_creep(creep);
 	}
 
+  let te = new TaskEngine();
+
   for (let rname in rooms) {
-    rooms[rname].tick();
+    te.spawn(0, `room:{rname}`, task => {
+      rooms[rname].tick(task);
+    });
+  }
+
+  while (te.pending_tasks()) {
+    te.run_tasks();
   }
 }
 
