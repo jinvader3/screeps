@@ -36,30 +36,30 @@ test('creep_iface', t => {
 });
 
 test('bootup', t => {
-  // I can't simulate the entire engine here. But, I virtualize it
-  // enough to check that the task code functions enough to execute
-  // the task for the room and at least one creep. I also check that
-  // it works under some abnormal conditions, like no controller and
-  // no creeps because that could happen on the server if one was
-  // attacked and the failure can't happen outside the tasks.
-  main.loop();
-
   game.memory().creeps = {};
-  game.memory().creeps['E32S87:apple'] = {};
+  game.memory().creeps['E32S87:apple'] = {
+    c: 'miner',
+    g: 'minera',
+    s: 's1',
+  };
 
   game.creeps()['E32S87:apple'] = {
     memory: game.memory().creeps['E32S87:apple'],
     name: 'E32S87:apple',
+    harvest: trgt => {
+      c = true;
+      console.log('called harvest');
+      return game.OK;
+    },
   };
-
-  game.rooms()['E32S87'] = {
-  };
-
-  main.loop();
 
   game.memory().rooms = {
     'E32S87': {},
   };
+
+  let a = false;
+  let b = false;
+  let c = false;
 
   game.rooms()['E32S87'] = {
     controller: {
@@ -73,8 +73,17 @@ test('bootup', t => {
         },
       },
     ],
+    containers: [
+    ],
     sources: [
       {
+        id: 's1',
+        pos: {
+          findInRange: (code, dist) => {
+            b = true;
+            return game.rooms()['E32S87'].containers;
+          },
+        },
       },
     ],
     find: (code) => {
@@ -82,13 +91,39 @@ test('bootup', t => {
         case game.FIND_MY_SPAWNS: return game.rooms()['E32S87'].spawns;
         case game.FIND_SOURCES: return game.rooms()['E32S87'].sources;
         case game.FIND_HOSTILE_CREEPS: return [];
+        case game.FIND_CONSTRUCTION_SITES: return [];
       }
+    },
+    createConstructionSite: (pos, stype) => {
+      t.truthy(stype === game.STRUCTURE_CONTAINER);
+      // Which we pretend turns into a contanier instantly.
+      console.log('created contanier using construction site');
+      game.rooms()['E32S87'].containers.push({
+        structureType: game.STRUCTURE_CONTAINER,
+        pos: {
+          isEqualTo: pos => {
+            a = true;
+            console.log('miner checked if on top of container');
+            return true;
+          },
+        }
+      });
     },
   };
 
-  console.log('big bootup');
-  main.loop();
+  game.setGetObjectByIdTrampoline(id => {
+    switch (id) {
+      case 's1': return game.rooms()['E32S87'].sources[0];
+      default: throw new Error(`unknown id ${id}`);
+    }
+  });
 
+  main.loop();
+  a = false;
+  b = false;
+  c = false;
+  main.loop();
+  t.truthy(a && b && c);
   t.pass();
 });
 
