@@ -397,12 +397,27 @@ class Room {
       this.dt_push_to_objects_with_stores(1.0, this.spawns),
       this.dt_push_to_objects_with_stores(1.0, this.exts),
       this.dt_push_to_objects_with_stores(1.0, this.towers),
-      this.dt_repair(0.5),
-      this.dt_push_nearest_csite(),
-      this.dt_push_to_objects_with_stores(
-        1.0, this.active_containers_adj_controller 
+      this.dt_cond(
+        () => {
+          // Make sure there is always enough to keep the spawns and
+          // extensions filled. Don't pump the controller so hard we
+          // run completely dry.
+          let rstor = this.room.storage;
+          if (!rstor)
+            return true;
+          if (rstor.store.getUsedCapacity(game.RESOURCE_ENERGY) > 3000)
+            return true;
+          return false;
+        },
+        [
+          this.dt_repair(0.5),
+          this.dt_push_nearest_csite(),
+          this.dt_push_to_objects_with_stores(
+            1.0, this.active_containers_adj_controller 
+          ),
+          this.dt_push_controller_always(),
+        ]
       ),
-      this.dt_push_controller_always(),
     ];
 
     let dt_worker_pull = [
@@ -437,6 +452,7 @@ class Room {
       this.dt_cond(
         () => this.creep_group_counts.worker > 0, 
         [
+          // Fill the storage until it hits 10k.
           this.dt_push_storage(10000)
         ],
       ),
