@@ -17,6 +17,9 @@ test.serial('creep_iface', t => {
   let room = {};
   let base_creep = {
     name: 'test',
+    memory: {
+      g: 'okay',
+    },
   };
 
   let clazzes = [
@@ -25,6 +28,7 @@ test.serial('creep_iface', t => {
     CreepMiner,
     CreepClaimer,
     CreepDummy,
+    CreepUpgrader,
   ];
 
   _.each(clazzes, clazz => {
@@ -33,6 +37,8 @@ test.serial('creep_iface', t => {
     t.truthy(c.get_name() === base_creep.name);
     t.truthy(typeof c.tick === 'function');
     t.truthy(typeof c.get_pos === 'function');
+    t.truthy(typeof c.get_group === 'function');
+    t.truthy(c.get_group() === 'okay')
   });
 
   t.pass();
@@ -42,7 +48,7 @@ test.serial('bootup', t => {
   game.memory().creeps = {};
   game.memory().creeps['E32S87:apple'] = {
     c: 'gw',
-    g: 'worker',
+    g: 'hauler',
   };
 
   game.creeps()['E32S87:apple'] = {
@@ -62,6 +68,14 @@ test.serial('bootup', t => {
     repair: () => {
       return game.OK;
     },
+    pickup: () => {
+      console.log('pickup');
+      return game.OK;
+    },
+    upgradeController: (trgt) => {
+      console.log('upgrade', trgt);
+      return game.OK;
+    },
   };
 
   game.memory().rooms = {
@@ -75,6 +89,25 @@ test.serial('bootup', t => {
   game.rooms()['E32S87'] = {
     controller: {
       my: true,
+      id: 'c3',
+      pos: {
+        findInRange: (what, dist) => {
+          let res = game.rooms()['E32S87'].containers;
+          console.log('findInRange', res.length);
+          return res;
+        },
+      },
+    },
+    createConstructionSite: () => {
+      console.log('create construction site... instant create')
+      game.rooms()['E32S87'].containers.push({
+        id: 'b5',
+        structureType: game.STRUCTURE_CONTAINER,
+        pos: {
+          isEqualTo: other => true,
+        },
+      });
+      return game.OK;
     },
     memory: game.memory().rooms['E32S87'],
     spawns: [
@@ -84,6 +117,9 @@ test.serial('bootup', t => {
         },
       },
     ],
+    get_controller: () => {
+      return game.rooms()['E32S87'].controller;
+    },
     containers: [
     ],
     sources: [
@@ -94,24 +130,25 @@ test.serial('bootup', t => {
         case game.FIND_SOURCES: return game.rooms()['E32S87'].sources;
         case game.FIND_HOSTILE_CREEPS: return [];
         case game.FIND_CONSTRUCTION_SITES: return [];
-        case game.FIND_STRUCTURES: return [{
-            structureType: game.STRUCTURE_ROAD,
-            hits: 0,
-            hitsMax: 100,
-        }];
+        case game.FIND_STRUCTURES: return [];
       }
     },
   };
 
   game.setGetObjectByIdTrampoline(id => {
+    console.log('resolve id', id);
     switch (id) {
       case 's1': return game.rooms()['E32S87'].sources[0];
+      case 'c3': return game.rooms()['E32S87'].controller;
       default: throw new Error(`unknown id ${id}`);
     }
   });
 
   let res = main.loop();
   t.truthy(res.length === 0);
+  res = main.loop();
+  t.truthy(res.length === 0);
+
   t.pass();
 });
 

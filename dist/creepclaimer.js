@@ -11,8 +11,16 @@ class CreepClaimer {
     return this.creep.pos;
   }
 
+  get_group() {
+    return this.creep.memory.g;
+  }
+
   get_name () {
     return this.creep.name;
+  }
+
+  get_group() {
+    return this.creep.memory.g;
   }
 
   get_target_room () {

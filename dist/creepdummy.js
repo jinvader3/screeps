@@ -7,6 +7,10 @@ class CreepDummy {
     return this.creep.pos;
   }
 
+  get_group() {
+    return this.creep.memory.g;
+  }
+
   get_name () {
     return this.creep.name;
   }

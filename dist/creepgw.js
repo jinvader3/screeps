@@ -15,6 +15,10 @@ class CreepGeneralWorker {
     return this.creep.name;
   }
 
+  get_group() {
+    return this.creep.memory.g;
+  }
+
   get_mode () {
     let mode = this.creep.memory.m;
     if (mode === undefined || mode === null) {
@@ -132,7 +136,7 @@ class CreepGeneralWorker {
       return false;
     }
 
-    if (res === game.ERR_INVALID_TARGET) {
+    if (res === game.ERR_INVALID_TARGET || res === game.ERR_NO_BODYPART) {
       res = this.creep.build(trgt);
       if (res === game.OK) {
         return true;
@@ -143,7 +147,7 @@ class CreepGeneralWorker {
       return false;
     }
 
-    if (res === game.ERR_INVALID_TARGET) {
+    if (res === game.ERR_INVALID_TARGET || res === game.ERR_NO_BODYPART) {
       let amount = this.creep.store.getUsedCapacity(restype);
       let most = trgt.store.getFreeCapacity(restype);
       res = this.creep.transfer(trgt, restype, Math.min(amount, most));

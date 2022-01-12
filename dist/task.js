@@ -87,20 +87,19 @@ class Task {
   run () {
     let credit = this.get_credit();
     if (credit <= 0) {
-      console.log(
-        `task:delayed[${this.get_full_name()}] credit=${credit}`
-      );
+      //console.log(
+      //  `task:delayed[${this.get_full_name()}] credit=${credit}`
+      //);
       return;
     }
 
-    console.log(`task:running[${this.get_full_name()}]`);
+    //console.log(`task:running[${this.get_full_name()}]`);
 
     try {
       let st = game.cpu().getUsed();
       this.f(this);
       let et = game.cpu().getUsed();
       let dt = et - st;
-      console.log('dt', dt, 'st', st, 'et', et);
       this.charge(dt);
       return null;
     } catch (err) {

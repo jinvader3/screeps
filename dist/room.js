@@ -5,6 +5,7 @@ const { CreepDummy } = require('./creepdummy');
 const { CreepMiner } = require('./creepminer');
 const { CreepFighter } = require('./creepfighter');
 const { CreepClaimer } = require('./creepclaimer');
+const { CreepUpgrader } = require('./creepupgrader');
 
 class Room {
   constructor (room) {
@@ -47,10 +48,15 @@ class Room {
     }
   }
 
+  get_controller () {
+    return this.room.controller;
+  }
+
   think_build_creep () {
   }
 
   add_creep (creep) {
+    console.log('@@@', creep.memory.c);
     switch (creep.memory.c) {
       case 'gw': 
         this.creeps.push(new CreepGeneralWorker(this, creep));
@@ -64,6 +70,9 @@ class Room {
       case 'claimer': 
         this.creeps.push(new CreepClaimer(this, creep));
         break;
+      case 'upgrader':
+        this.creeps.push(new CreepUpgrader(this, creep));
+        break;
       default: 
         this.creeps.push(new CreepDummy(this, creep));
         break;
@@ -73,9 +82,11 @@ class Room {
   tick_need_spawn () {
     let creep_group_counts = {
       'worker': 0,
+      'hauler': 0,
       'minera': 0,
       'minerb': 0,
       'fighter': 0,
+      'upgrader': 0,
     };
 
     function group_count (gname) {
@@ -212,7 +223,7 @@ class Room {
     //  carry_power < req_carry_power;
     let need_another = true;
 
-    if (creep_group_counts.worker >= 6) {
+    if (creep_group_counts.worker >= 2) {
       need_another = false;
     }
 
@@ -240,6 +251,49 @@ class Room {
           memory: { 'c': 'gw', 'g': 'worker' },
         }
       );
+    }
+
+    if (creep_group_counts.hauler === 0) {
+      let ea = this.room.energyCapacityAvailable;
+      // WORK, CARRY, MOVE, MOVE is one unit
+      let unit_cost = 50 + 50;
+      let unit_count = Math.floor(ea / unit_cost);
+      let body_spec = [];
+
+      for (let x = 0; x < unit_count; ++x) {
+        body_spec.push(game.CARRY);
+        body_spec.push(game.MOVE);
+      }
+
+      this.spawns[0].spawnCreep(
+        body_spec,
+        this.room.name + ':' + game.time(),
+        {
+          memory: { 'c': 'gw', 'g': 'hauler' },
+        }
+      );        
+    }
+
+    if (creep_group_counts.upgrader === 0) {
+      let ea = this.room.energyCapacityAvailable;
+      let unit_cost = 50 + 100 + 100 + 50;
+      let unit_count = Math.floor(ea / unit_cost);
+      let body_spec = [];
+
+      for (let x = 0; x < unit_count; ++x) {
+        body_spec.push(game.CARRY);
+        body_spec.push(game.WORK);
+        body_spec.push(game.WORK);
+        body_spec.push(game.MOVE);
+      }
+
+      this.spawns[0].spawnCreep(
+        body_spec,
+        this.room.name + ':' + game.time(),
+        {
+          memory: { 'c': 'upgrader', 'g': 'upgrader' },
+        }
+      );        
     }
   }
 
@@ -302,14 +356,31 @@ class Room {
       this.dt_push_controller_always(),
     ];
 
-    for (let ndx in this.creeps) {
+    let dt_push_hauler = [
+      this.dt_push_to_objects_with_stores(1.0, this.spawns),
+      this.dt_push_to_objects_with_stores(1.0, this.exts),
+      this.dt_push_to_objects_with_stores(1.0, this.towers),
+      this.dt_push_container_adjacent_controller(),
+    ];
+
+     for (let ndx in this.creeps) {
       let creep = this.creeps[ndx];
-      task.spawn(0, `creep:${creep.get_name()}`, ctask => {
-        creep.tick(
-          () => this.dt_run(dt_pull, creep), 
-          () => this.dt_run(dt_push, creep)
-        );
-      });
+      if (creep.get_group() === 'hauler') {
+        console.log('hauler dt');
+        let _dt_pull = () => this.dt_run(dt_pull, creep);
+        let _dt_push = () => this.dt_run(dt_push_hauler, creep);
+        task.spawn(0, `creep:${creep.get_name()}`, ctask => {
+          creep.tick(_dt_pull, _dt_push);
+        });
+      } else {
+        console.log('worker dt');
+        let _dt_pull = () => this.dt_run(dt_pull, creep);
+        let _dt_push = () => this.dt_run(dt_push, creep);
+        task.spawn(0, `creep:${creep.get_name()}`, ctask => {
+          creep.tick(_dt_pull, _dt_push);
+        });
+      }
+
     }
   }
 
@@ -452,10 +523,13 @@ class Room {
 
   dt_push_controller_always () {
     return (creep) => {
+      console.log('push controller always');
       let c = this.room.controller;
       if (c && c.my) {
+        console.log('yes');
         return c;
       }
+      console.log('no');
       return null;
     };
   }
@@ -474,11 +548,12 @@ class Room {
     for (let x = 0; x < dt.length; ++x) {
       let dte = dt[x];
       let trgt = dte(creep);
+      console.log('dte', x);
       if (trgt) {
         return trgt;
       }
     }
-
+    console.log('dt_run returning null');
     return null;
   }
 
@@ -503,6 +578,17 @@ class Room {
     };
   }
 
+  dt_push_container_adjacent_controller () {
+    return (creep) => {
+        let c = this.room.controller;
+        let cont = _.filter(
+            c.pos.findInRange(game.FIND_STRUCTURES, 1.8), struct => {
+            return struct.structureType === game.STRUCTURE_CONTAINER
+        });
+        return cont.length > 0 ? cont[0] : null;
+    };
+  }
+
   dt_push_to_objects_with_stores (threshold, objlist) {
     return (creep) => {
       let valids = _.filter(
@@ -518,51 +604,13 @@ class Room {
           return false;
         }
       );
-      return _.sample(valids);
+      if (valids.length === 0) {
+          return null;
+      }
+      return creep.get_pos().findClosestByPath(valids);
+      //return _.sample(valids);
     };
   }
-
-  /*
-   * OBSOLETE BY: dt_push_to_objects_with_stores
-   *
-  dt_push_extensions (threshold) {
-    return (creep) => {
-      let exts = _.filter(
-        this.exts, s => {
-          let free = s.store.getFreeCapacity(game.RESOURCE_ENERGY);
-          let used = s.store.getUsedCapacity(game.RESOURCE_ENERGY);
-          let ratio = used / free;
-          if (ratio < threshold) {
-            if (!this.max_put_intent(s, game.RESOURCE_ENERGY)) {
-              return true;
-            }
-          }
-          return false;
-        }
-      );
-      return _.sample(exts);
-    };
-  }
-
-  dt_push_spawns (threshold) {
-    return (creep) => {
-      let spawns = _.filter(
-        this.spawns, s => {
-          let free = s.store.getFreeCapacity(game.RESOURCE_ENERGY);
-          let used = s.store.getUsedCapacity(game.RESOURCE_ENERGY);
-          let ratio = used / free;
-          if (ratio < threshold) {
-            if (!this.max_put_intent(s, game.RESOURCE_ENERGY)) {
-              return true;
-            }
-          }
-          return false;
-        }
-      );
-      return _.sample(spawns);
-    };
-  }
-  */
 
   count_source_spots (src) {
     let spots = this.room.lookAtArea(
