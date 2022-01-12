@@ -4,8 +4,6 @@ const { Room } = require('./room');
 const { TaskEngine } = require('./task');
 
 module.exports.loop = function () {
-  console.log('main loop');
-
   let rooms = {};
 
   for (let name in game.memory().creeps) {
@@ -16,9 +14,8 @@ module.exports.loop = function () {
 
   for (let name in game.rooms()) {
     let room = game.rooms()[name];
-    console.log('@room', room);
     if (room.controller !== undefined && room.controller.my) {
-      console.log('@room obj made', name);
+      //console.log('@room obj made', name);
       let robj = new Room(room);
       rooms[name] = robj;
     }
@@ -29,13 +26,13 @@ module.exports.loop = function () {
     let parts = name.split(':');
     let rn = parts[0];
 
-    console.log('adding creep to room', rn);
+    //console.log('adding creep to room', rn);
     
     if (rooms[rn] !== undefined) {
       // If controller is lost this could happen. Not sure
       // the best behavior. But, for now, this prevents the
       // failure of the entire script.
-      console.log('creep added to room');
+      //console.log('creep added to room');
       rooms[rn].add_creep(creep);
     }
 	}
@@ -51,7 +48,13 @@ module.exports.loop = function () {
     task.credit(4, 10);
   }
 
-  return te.run_tasks();
+  let res = te.run_tasks();
+
+  _.each(res, stat => {
+    console.log(stat[0], stat[1]);
+  });  
+ 
+  return res;
 }
 
 

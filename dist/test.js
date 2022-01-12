@@ -5,6 +5,7 @@ const { CreepGeneralWorker } = require('./creepgw');
 const { CreepFighter } = require('./creepfighter');
 const { CreepMiner } = require('./creepminer');
 const { TaskEngine } = require('./task');
+const { CreepUpgrader } = require('./creepupgrader');
 const { CreepClaimer } = require('./creepclaimer');
 const { CreepDummy } = require('./creepdummy');
 const game = require('./game');
@@ -59,21 +60,25 @@ test.serial('bootup', t => {
         t.truthy(type === game.RESOURCE_ENERGY);
         return 1;
       },
+      getFreeCapacity: type => {
+        return 0;
+      },
     },
     pos: {
       findClosestByPath: objs => {
         return objs[0];
       },
     },
-    repair: () => {
+    repair: (trgt) => {
+      console.log('repair', trgt.id);
       return game.OK;
     },
     pickup: () => {
-      console.log('pickup');
+      console.log('pickup', trgt.id);
       return game.OK;
     },
     upgradeController: (trgt) => {
-      console.log('upgrade', trgt);
+      console.log('upgrade', trgt.id);
       return game.OK;
     },
   };
@@ -97,17 +102,6 @@ test.serial('bootup', t => {
           return res;
         },
       },
-    },
-    createConstructionSite: () => {
-      console.log('create construction site... instant create')
-      game.rooms()['E32S87'].containers.push({
-        id: 'b5',
-        structureType: game.STRUCTURE_CONTAINER,
-        pos: {
-          isEqualTo: other => true,
-        },
-      });
-      return game.OK;
     },
     memory: game.memory().rooms['E32S87'],
     spawns: [

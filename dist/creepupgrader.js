@@ -40,7 +40,10 @@ class CreepUpgrader {
       if (!cont.pos.isEqualTo(this.creep.pos)) {
         this.move_to(cont);
       } else {
-        this.creep.pickup(cont);
+        let res = this.creep.withdraw(
+          cont, game.RESOURCE_ENERGY, 
+          this.creep.store.getFreeCapacity(game.RESOURCE_ENERGY)
+        );
         this.creep.upgradeController(c);
       }
     } else {

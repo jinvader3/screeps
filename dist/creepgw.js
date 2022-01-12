@@ -85,7 +85,7 @@ class CreepGeneralWorker {
       return false;
     }
     
-    if (res === game.ERR_INVALID_TARGET) {
+    if (res === game.ERR_INVALID_TARGET || res === game.ERR_NO_BODYPART) {
       res = this.creep.withdraw(
         trgt, restype, this.creep.store.getFreeCapacity(restype)
       );
@@ -203,16 +203,28 @@ class CreepGeneralWorker {
     }
 
     let trgt = this.get_target();
+
     let ecarry = this.creep.store.getUsedCapacity(game.RESOURCE_ENERGY);
+    let efree = this.creep.store.getFreeCapacity(game.RESOURCE_ENERGY);
+
     if (!trgt) {
-      if (ecarry === 0) {
+      let a = this.get_mode() === 'pull' && efree > 0;
+      let b = ecarry === 0;
+
+      if (a || b) {
         trgt = dt_pull();
         this.set_mode('pull');
-        console.log('pull', trgt);
+        console.log(this.creep.memory.g, 'pull', trgt);
+        if (!trgt) {
+            return null;
+        }
       } else {
         trgt = dt_push();
         this.set_mode('push');
-        console.log('push', trgt);
+        console.log(this.creep.memory.g, 'push', trgt);
+        if (!trgt) {
+            return null;
+        }
       }
 
       this.set_target(trgt);
