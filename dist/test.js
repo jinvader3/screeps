@@ -6,6 +6,7 @@ const { CreepFighter } = require('./creepfighter');
 const { CreepMiner } = require('./creepminer');
 const { TaskEngine } = require('./task');
 const { CreepClaimer } = require('./creepclaimer');
+const { CreepDummy } = require('./creepdummy');
 const game = require('./game');
 const _ = game._;
 
@@ -28,8 +29,10 @@ test('creep_iface', t => {
 
   _.each(clazzes, clazz => {
     let c = new clazz(room, base_creep);
+    console.log('testing', clazz, typeof c.get_pos);
     t.truthy(c.get_name() === base_creep.name);
     t.truthy(typeof c.tick === 'function');
+    t.truthy(typeof c.get_pos === 'function');
   });
 
   t.pass();
@@ -38,18 +41,23 @@ test('creep_iface', t => {
 test('bootup', t => {
   game.memory().creeps = {};
   game.memory().creeps['E32S87:apple'] = {
-    c: 'miner',
-    g: 'minera',
-    s: 's1',
+    c: 'gw',
+    g: 'worker',
   };
 
   game.creeps()['E32S87:apple'] = {
     memory: game.memory().creeps['E32S87:apple'],
     name: 'E32S87:apple',
-    harvest: trgt => {
-      c = true;
-      console.log('called harvest');
-      return game.OK;
+    store: {
+      getUsedCapacity: type => {
+        t.truthy(type === game.RESOURCE_ENERGY);
+        return 1;
+      },
+    },
+    pos: {
+      findClosestByPath: objs => {
+        return objs[0];
+      },
     },
   };
 
@@ -76,15 +84,6 @@ test('bootup', t => {
     containers: [
     ],
     sources: [
-      {
-        id: 's1',
-        pos: {
-          findInRange: (code, dist) => {
-            b = true;
-            return game.rooms()['E32S87'].containers;
-          },
-        },
-      },
     ],
     find: (code) => {
       switch (code) {
@@ -92,22 +91,12 @@ test('bootup', t => {
         case game.FIND_SOURCES: return game.rooms()['E32S87'].sources;
         case game.FIND_HOSTILE_CREEPS: return [];
         case game.FIND_CONSTRUCTION_SITES: return [];
+        case game.FIND_STRUCTURES: return [{
+            structureType: game.STRUCTURE_ROAD,
+            hits: 0,
+            hitsMax: 100,
+        }];
       }
-    },
-    createConstructionSite: (pos, stype) => {
-      t.truthy(stype === game.STRUCTURE_CONTAINER);
-      // Which we pretend turns into a contanier instantly.
-      console.log('created contanier using construction site');
-      game.rooms()['E32S87'].containers.push({
-        structureType: game.STRUCTURE_CONTAINER,
-        pos: {
-          isEqualTo: pos => {
-            a = true;
-            console.log('miner checked if on top of container');
-            return true;
-          },
-        }
-      });
     },
   };
 
@@ -119,11 +108,6 @@ test('bootup', t => {
   });
 
   main.loop();
-  a = false;
-  b = false;
-  c = false;
-  main.loop();
-  t.truthy(a && b && c);
   t.pass();
 });
 
@@ -204,8 +188,7 @@ test('tasks:indepchildcredit', t => {
     });
 
     // Take 10 credits from task and give to ctask.
-    ctask.transfer(task, 10);
-
+    task.transfer(ctask, 10, 20);
     game.cpu().setUsed(5);
     a = true;
   });
@@ -220,10 +203,8 @@ test('tasks:indepchildcredit', t => {
     let ctask = task.spawn_isolated(0, 'isolated_apple', () => {
       b = true;
     });
-
     // Take 10 credits from task and give to ctask.
-    task.transfer(ctask, 20);
-
+    task.transfer(ctask, 20, 20);
     game.cpu().setUsed(5);
     a = true;
   });

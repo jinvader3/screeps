@@ -10,7 +10,7 @@ class Task {
     this.parent = parent;
     this.priority = priority;
     this.name = name;
-    this.payer = payer;
+    this.payer = !payer ? this : this.get_payer(payer);
     this.f = f;
     this.te = te;
   }
@@ -28,17 +28,17 @@ class Task {
   }
 
   charge (amount) {
-    let cur = this.get_payer();
-    cur.set_credit(cur.get_credit() - amount);
+    this.payer.set_credit(this.payer.get_credit() - amount);
   }
 
-  transfer (to, amount) {
+  transfer (to, amount, maxcap) {
     this.charge(amount);
-    return to.set_credit(to.get_credit() + amount);
+    console.log('transfer', amount, maxcap, to.name);
+    return to.credit(amount, maxcap);
   }
 
-  get_payer() {
-    let cur = this;
+  get_payer (root) {
+    let cur = root;
     while (cur.payer !== null) {
       cur = cur.payer;
     }
@@ -52,10 +52,6 @@ class Task {
   }
 
   get_credit () {
-    return this.get_payer()._get_credit();
-  }
-
-  _get_credit () {
     let fname = this.get_full_name();
     let tasks = this.get_tasks();
     if (tasks[fname] === undefined) {
@@ -65,25 +61,17 @@ class Task {
   }
 
   set_credit (amount) {
-    return this.get_payer()._set_credit(amount);
-  }
-
-  _set_credit (amount) {
     let tasks = this.get_tasks();
     let fname = this.get_full_name();
     tasks[fname] = amount;
   }
 
   credit (amount, maxcap) {
-    return this.get_payer()._credit(amount, maxcap);
-  }
-
-  _credit (amount, maxcap) {
-    let v = this.get_credit();
+    let v = this.payer.get_credit();
     if (v + amount > maxcap) {
-      this.set_credit(maxcap);
+      this.payer.set_credit(maxcap);
     } else {
-      this.set_credit(v + amount);
+      this.payer.set_credit(v + amount);
     }
   }
 
@@ -98,8 +86,11 @@ class Task {
   }
 
   run () {
-    if (this.get_credit() <= 0) {
-      console.log(`task:delayed[${this.get_full_name()}]`);
+    let credit = this.get_credit();
+    if (credit <= 0) {
+      console.log(
+        `task:delayed[${this.get_full_name()}] credit=${credit}`
+      );
       return;
     }
 
