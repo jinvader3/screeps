@@ -3,6 +3,10 @@ class CreepDummy {
     this.creep = creep;
   }
 
+  get_pos () {
+    return this.creep.pos;
+  }
+
   get_name () {
     return this.creep.name;
   }

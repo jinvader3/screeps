@@ -10,7 +10,7 @@ class Task {
     this.parent = parent;
     this.priority = priority;
     this.name = name;
-    this.payer = !payer ? this : this.get_payer(payer);
+    this.payer = !payer ? this : payer.payer;
     this.f = f;
     this.te = te;
   }
@@ -28,21 +28,12 @@ class Task {
   }
 
   charge (amount) {
-    this.payer.set_credit(this.payer.get_credit() - amount);
+    this.set_credit(this.get_credit() - amount);
   }
 
   transfer (to, amount, maxcap) {
     this.charge(amount);
-    console.log('transfer', amount, maxcap, to.name);
     return to.credit(amount, maxcap);
-  }
-
-  get_payer (root) {
-    let cur = root;
-    while (cur.payer !== null) {
-      cur = cur.payer;
-    }
-    return cur;
   }
 
   get_tasks () {
@@ -51,7 +42,7 @@ class Task {
     return tasks;
   }
 
-  get_credit () {
+  _get_credit () {
     let fname = this.get_full_name();
     let tasks = this.get_tasks();
     if (tasks[fname] === undefined) {
@@ -60,18 +51,26 @@ class Task {
     return tasks[fname];
   }
 
-  set_credit (amount) {
+  _set_credit (amount) {
     let tasks = this.get_tasks();
     let fname = this.get_full_name();
     tasks[fname] = amount;
   }
 
+  get_credit () {
+    return this.payer._get_credit();
+  }
+
+  set_credit (amount) {
+    return this.payer._set_credit(amount);
+  }
+
   credit (amount, maxcap) {
-    let v = this.payer.get_credit();
+    let v = this.get_credit();
     if (v + amount > maxcap) {
-      this.payer.set_credit(maxcap);
+      this.set_credit(maxcap);
     } else {
-      this.payer.set_credit(v + amount);
+      this.set_credit(v + amount);
     }
   }
 
@@ -101,6 +100,7 @@ class Task {
       this.f(this);
       let et = game.cpu().getUsed();
       let dt = et - st;
+      console.log('dt', dt, 'st', st, 'et', et);
       this.charge(dt);
       return null;
     } catch (err) {
@@ -133,13 +133,18 @@ class TaskEngine {
   }
 
   run_tasks () {
+    let errors = []
     while (this.pend_tasks.length > 0) {
       this.pend_tasks.sort((a, b) => {
         return a.priority > b.priority ? 1 : -1;
       });
       let cur_task = this.pend_tasks.shift();
-      cur_task.run();
+      let err = cur_task.run();
+      if (err) {
+        errors.push([cur_task.get_full_name(), err])
+      }
     }
+    return errors;
   }
 }
 

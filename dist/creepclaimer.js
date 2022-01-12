@@ -7,6 +7,10 @@ class CreepClaimer {
     this.room = room;
   }
 
+  get_pos () {
+    return this.creep.pos;
+  }
+
   get_name () {
     return this.creep.name;
   }

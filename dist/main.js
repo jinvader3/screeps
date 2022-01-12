@@ -51,9 +51,7 @@ module.exports.loop = function () {
     task.credit(4, 10);
   }
 
-  while (te.pending_tasks()) {
-    te.run_tasks();
-  }
+  return te.run_tasks();
 }
 
 

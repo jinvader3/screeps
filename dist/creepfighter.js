@@ -7,6 +7,13 @@ class CreepFighter {
     this.room = room;
   }
 
+  // now you tell me how im hacked and we could be friends but i see
+  // you and nobody else wants to do that then we going to always be
+  // enemies;
+  get_pos () {
+    return this.creep.pos;
+  }
+
   get_name () {
     return this.creep.name;
   }

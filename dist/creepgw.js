@@ -7,6 +7,10 @@ class CreepGeneralWorker {
     this.room = room;
   }
 
+  get_pos () {
+    return this.creep.pos;
+  }
+
   get_name () {
     return this.creep.name;
   }
@@ -40,7 +44,7 @@ class CreepGeneralWorker {
   }
 
   get_target () {
-    if (this.creep.memory.t === null) {
+    if (!this.creep.memory.t) {
       return null;
     }
     return game.getObjectById()(this.creep.memory.t);
@@ -148,6 +152,10 @@ class CreepGeneralWorker {
       }
     }
 
+    if (res === game.ERR_INVALID_TARGET) {
+      return false;
+    }
+
     if (res === game.ERR_NOT_ENOUGH_RESOURCES) {
       return false;
     }
@@ -159,7 +167,7 @@ class CreepGeneralWorker {
     if (res == game.ERR_NOT_IN_RANGE) {
       let res2 = this.move_to(trgt);
       return true;
-    }    
+    } 
 
     return true;
   }
@@ -196,9 +204,11 @@ class CreepGeneralWorker {
       if (ecarry === 0) {
         trgt = dt_pull();
         this.set_mode('pull');
+        console.log('pull', trgt);
       } else {
         trgt = dt_push();
         this.set_mode('push');
+        console.log('push', trgt);
       }
 
       this.set_target(trgt);

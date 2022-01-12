@@ -95,7 +95,13 @@ class Room {
       creep_group_counts[creep.creep.memory.g]++;
     });
 
-    if (creep_group_counts.minera < 1 && this.spawns.length > 0) {
+    if (
+      // We must have zero miner type As.
+      creep_group_counts.minera < 1 && 
+      // We must have at least one spawn.
+      this.spawns.length > 0 &&
+      // We must have at least one source.
+      this.sources.length > 0) {
       this.spawns[0].spawnCreep(
         [game.WORK, game.WORK, game.WORK, game.WORK, game.WORK, game.MOVE],
         this.room.name + ':' + game.time(),
@@ -197,10 +203,14 @@ class Room {
       });
     });
 
-    let need_another = 
-      creep_group_counts.worker < 2 ||
-      work_power < 8 || 
-      carry_power < 8;
+    //let req_work_power = 8;
+    //let req_carry_power = 8;
+
+    //let need_another = 
+    //  creep_group_counts.worker < 2 ||
+    //  work_power < req_work_power || 
+    //  carry_power < req_carry_power;
+    let need_another = true;
 
     if (creep_group_counts.worker >= 6) {
       need_another = false;
@@ -242,12 +252,18 @@ class Room {
     this.exts = [];
     this.towers = [];
     this.spawns = [];
+    this.structs = [];
+    this.roads = [];
+    this.containers = [];
 
     _.each(this.room.find(game.FIND_STRUCTURES), s => {
+      this.structs.push(s);
       switch (s.structureType) {
         case game.STRUCTURE_EXTENSION: this.exts.push(s); return;
         case game.STRUCTURE_TOWER: this.towers.push(s); return;
         case game.STRUCTURE_SPAWN: this.spawns.push(s); return;
+        case game.STRUCTURE_ROAD: this.roads.push(s); return;
+        case game.STRUCTURE_CONTAINER: this.containers.push(s); return;
       }
     });
 
@@ -281,7 +297,7 @@ class Room {
       this.dt_push_to_objects_with_stores(1.0, this.spawns),
       this.dt_push_to_objects_with_stores(1.0, this.exts),
       this.dt_push_to_objects_with_stores(1.0, this.towers),
-      this.dt_push_road_repair_nearby(0.5),
+      this.dt_repair(0.5),
       this.dt_push_nearest_csite(),
       this.dt_push_controller_always(),
     ];
@@ -392,6 +408,16 @@ class Room {
     };
   }
 
+  dt_repair (threshold) {
+    return (creep) => {
+      let valid = _.filter(this.structs, s => {
+        return (s.hits / s.hitsMax) < threshold;
+      });
+      console.log('@@@', creep);
+      return creep.get_pos().findClosestByPath(valid);
+    };
+  }
+
   dt_push_road_repair_nearby (threshold) {
     return (creep) => {
       let pos = creep.creep.pos;
@@ -400,7 +426,7 @@ class Room {
       );
       let roads = _.filter(structs, s => s.structureType === game.STRUCTURE_ROAD);
       let road = _.find(roads, road => {
-        let ratio = road.hits / ratio.hitsMax;
+        let ratio = road.hits / road.hitsMax;
         return ratio < threshold;
       });
       return road;

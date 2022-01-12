@@ -4,7 +4,7 @@
   "description": "An A.I. for Screeps.com.",
   "main": "./dist/main.js",
   "dependencies": {
-    "ava": "^4.0.0",
+    "ava": "^4.0.1",
     "grunt": "^1.4.1",
     "grunt-cli": "^1.4.3",
     "grunt-screeps": "^1.5.0"

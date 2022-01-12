@@ -10,7 +10,7 @@ const { CreepDummy } = require('./creepdummy');
 const game = require('./game');
 const _ = game._;
 
-test('creep_iface', t => {
+test.serial('creep_iface', t => {
   // Ensure each creep sub-type has the proper interface.
   let c;
 
@@ -38,7 +38,7 @@ test('creep_iface', t => {
   t.pass();
 });
 
-test('bootup', t => {
+test.serial('bootup', t => {
   game.memory().creeps = {};
   game.memory().creeps['E32S87:apple'] = {
     c: 'gw',
@@ -58,6 +58,9 @@ test('bootup', t => {
       findClosestByPath: objs => {
         return objs[0];
       },
+    },
+    repair: () => {
+      return game.OK;
     },
   };
 
@@ -107,11 +110,17 @@ test('bootup', t => {
     }
   });
 
-  main.loop();
+  let res = main.loop();
+  t.truthy(res.length === 0);
   t.pass();
 });
 
-test('tasks:singletask', t => {
+function clear_game_memory() {
+  game.memory_clear();
+}
+
+test.serial('tasks:singletask', t => {
+  clear_game_memory();
   let te = new TaskEngine();
   let a = false;
   let task = te.spawn(0, 'apple', task => {
@@ -123,7 +132,9 @@ test('tasks:singletask', t => {
   t.pass();
 });
 
-test('tasks:creditandcharge', t => {
+test.serial('tasks:creditandcharge', t => {
+  clear_game_memory();
+  game.cpu().setUsed(0);
   let te = new TaskEngine();
   let a = false;
   let b = false;
@@ -157,11 +168,12 @@ test('tasks:creditandcharge', t => {
   t.pass();
 });
 
-test('tasks:indepchildcredit', t => {
-  // Test that the parent will execute with credit but the
-  // independent child (isolated) will not execute because it
-  // now has its own credit account which is zero. Next, set
-  // the child to some amount using a transfer.
+test.serial('tasks:indepchildcredit', t => {
+  console.log('tasks:indepchildcredit');
+  clear_game_memory();
+
+  game.cpu().setUsed(0);
+
   let te = new TaskEngine();
   let a = false;
   let b = false;
@@ -175,9 +187,13 @@ test('tasks:indepchildcredit', t => {
     a = true;
   });
 
+  console.log('!!!', task.get_credit());
+
   task.credit(10);
   te.run_tasks();
   t.truthy(a && !b);
+
+  console.log('==');
 
   a = false;
   b = false;
@@ -192,9 +208,13 @@ test('tasks:indepchildcredit', t => {
     game.cpu().setUsed(5);
     a = true;
   });
+  
+  console.log('!!!', task.get_credit());
 
   te.run_tasks();
   t.truthy(a && b);
+
+  console.log('==');
 
   a = false;
   b = false;
@@ -204,10 +224,13 @@ test('tasks:indepchildcredit', t => {
       b = true;
     });
     // Take 10 credits from task and give to ctask.
+    console.log('transfer');
     task.transfer(ctask, 20, 20);
     game.cpu().setUsed(5);
     a = true;
   });
+
+  console.log('@@@', task.get_credit());
 
   te.run_tasks();
   t.truthy(!a && !b);
@@ -218,7 +241,10 @@ test('tasks:indepchildcredit', t => {
   t.pass();
 });
 
-test('tasks:childtaskandpriority', t => {
+test.serial('tasks:childtaskandpriority', t => {
+  console.log('tasks:childtaskandpriority');
+  clear_game_memory();
+  game.cpu().setUsed(0);
   let te = new TaskEngine();
   let a = false;
   let b = false;
@@ -226,14 +252,18 @@ test('tasks:childtaskandpriority', t => {
   let d = 0;
   let e = false;
   let task = te.spawn(0, 'apple', task => {
+    console.log('apple running')
     a = d++;
     task.spawn(0, 'grape', ctask => {
+      console.log('grape running');
       b = d++;
     });
     task.spawn(1, 'fox', ctask => {
+      console.log('fox running');
       c = d++;
     });
     task.spawn(-1, 'turtle', ctask => {
+      console.log('turtle running');
       e = d++;
     });
   });

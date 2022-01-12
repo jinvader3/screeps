@@ -59,7 +59,7 @@ if (global['Game'] !== undefined) {
   // not reply on those values. If they were to there wouldn't be a
   // constant but a string you'd use. They could change so if this
   // causes code to go wrong then it is good because I can catch it.
-  const g_memory = {};
+  let g_memory = {};
   let g_cpu_used = 0;
   const g_cpu = {
     getUsed: () => g_cpu_used,
@@ -104,5 +104,8 @@ if (global['Game'] !== undefined) {
     LOOK_STRUCTURES: 'look_structures',
     LOOK_ENERGY: 'look_energy',
     memory: () => g_memory,
+    memory_clear: () => {
+      g_memory = {};
+    },
   };
 }

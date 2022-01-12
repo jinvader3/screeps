@@ -9,166 +9,7 @@ import threading
 import queue
 import traceback
 import sys
-
-
-class Panel:
-    def __init__(self, prog):
-        pass
-
-    def on_show(self, win):
-        pass
-
-    def update (self, win, lkey):
-        pass
-
-    def get_menu_title(self):
-        raise Exception('The panel implementation forgot to implement this.')
-
-class HelpPanel(Panel):
-    def update(self, win, lkey):
-        win.erase()
-        win.addstr(0, 0, 'Welcome to the help panel!')
-
-    def get_menu_title(self):
-        return 'Help'
-
-class RoomPanel(Panel):
-    def __init__(self, prog, room_name):
-        super().__init__(prog)
-
-class RoomTechPanel(Panel):
-    def __init__(self, prog, room_name):
-        super().__init__(prog)
-
-        prog.reg_hook_room_change(self.room_change_handler)
-        prog.reg_hook_room_updates(self.room_update_handler)
-
-        self.room_name = room_name
-        self.data = {}
-        self.ox = 0
-
-    def room_change_handler(self, new_room_name):
-        pass
-
-    def room_update_handler(self, oid, obj):
-        if oid not in self.data:
-            self.data[oid] = {}
-
-        for k in obj:
-            self.data[oid][k] = obj[k]
-
-    def update(self, win, lkey):
-        if lkey == 'KEY_RIGHT':
-            self.ox += 1
-        elif lkey == 'KEY_LEFT':
-            self.ox -= 1
-            if self.ox < 0:
-                self.ox = 0
-
-        h, w = win.getmaxyx()
-        win.erase()
-        win.addstr(0, 0, 'Name: %s' % (self.room_name))
-
-        oids = list(self.data.keys())
-
-        y = 0
-        for oid in oids:
-            line = '%s: %s' % (oid, str(self.data[oid]))
-            win.addnstr(1 + y, 0, line[self.ox:], w)
-            y += 1
-
-    def get_menu_title(self):
-        return 'Room'
-
-class OverviewPanel(Panel):
-    def __init__(self, prog):
-        super().__init__(prog)
-        self.ovdata = prog.api.overview()
-
-    def get_menu_title(self):
-        return 'Overview'
-
-    def update(self, win, lkey):
-        win.erase()
-        shard_data = self.ovdata['shards']
-        for shard_name in shard_data:
-            logging.info('d=%s' % shard_data[shard_name]);
-            rooms = shard_data[shard_name].get('rooms', [])
-            stats = shard_data[shard_name].get('stats', {})
-            for room_name in rooms:
-                logging.info('shard=%s room=%s' % (shard_name, room_name))
-            for room_name in stats:
-                room_stats = stats[room_name]
-                logging.info('shard=%s room=%s stats=%s' % (
-                    shard_name, room_name, room_stats
-                ))
-
-class LogPanel(Panel):
-    def __init__(self, prog):
-        super().__init__(prog)
-        prog.reg_hook_whole_log(self.whole_log_handler)
-        self.wlogs = []
-        self.wndx = 0
-        self.ondx = None
-        self.lndx = 0
-        logging.info('recreated log panel')
-
-    def get_menu_title(self):
-        return 'Log'
-
-    def whole_log_handler(self, wlog):
-        self.wlogs.append(wlog)
-
-    def update(self, win, lkey):
-        win.erase()
-        h, w = win.getmaxyx()
-   
-        if lkey == 'w':
-            self.lndx = 0
-            if self.ondx is None:
-                self.ondx = len(self.wlogs) - 1
-            self.wndx += 1
-        elif lkey == 's':
-            self.lndx = 0
-            if self.ondx is None:
-                self.ondx = len(self.wlogs) - 1
-            self.wndx -= 1
-            if self.wndx < 0: 
-                self.wndx = 0
-            if self.wndx == 0:
-                self.ondx = None
-        elif lkey == 'KEY_DOWN':
-            self.lndx += 1
-        elif lkey == 'KEY_UP':
-            self.lndx -= 1
-
-        logging.info('self.wndx=%s' % self.wndx)
-
-        if self.wndx == 0:
-            cndx = len(self.wlogs) - 1
-        else :
-            cndx = self.ondx - self.wndx
-
-        win.addnstr(0, 0, 'Showing tick log %s/%s [%s]. At line %s.' % (
-            cndx, len(self.wlogs) - 1, self.wndx, self.lndx
-        ), w)
-
-        yoff = 1
-        sh = h - yoff
-
-        if cndx < 0 or cndx >= len(self.wlogs):
-            win.addnstr(1, 0, "[This log does not exist.]", w)
-            return
-
-        logs = self.wlogs[cndx]
-
-        for y in range(0, sh):
-            try:
-                line = logs[len(logs) - sh + y + self.lndx]
-            except IndexError:
-                line = ''
-            win.addnstr(y + yoff, 0, line, w)
-            win.noutrefresh()
+import pprint
 
 class MySocket(screepsapi.Socket):
     def __init__(self, user, pw, eque):
@@ -199,6 +40,128 @@ class MySocket(screepsapi.Socket):
           'shard': shard
         })
 
+class ShardOverview:
+    def __init__(self):
+        pass
+
+class RouteRoomObjects:
+    pass
+
+class RouteRoomView:
+    pass
+
+class RouteMap:
+    pass
+
+class RouteConsole:
+    def __init__(self, prog, shard):
+        self.shard = shard
+        prog.subscribe_user('console')
+        self.log = []
+
+    def on_event(self, e, prog, win, addlink):
+        if e['topic'] != 'log':
+            return
+
+        if e['shard'] != self.shard:
+            return
+
+        self.log.append(e['msg'])
+
+        win.clear()
+        prog.clear_links()
+
+        h, w = win.getmaxyx()
+
+        lines = []
+
+        for x in range(0, h):
+            try:
+                line = self.log[len(self.log) - h + x]
+            except IndexError:
+                line = ''
+            while len(line) > w:
+                nline = line[:w]
+                lines.append(nline)
+                line = line[w:]
+            lines.append(line)
+    
+        for x in range(0, h):
+            try:
+                line = lines[len(lines) - h + x]
+            except IndexError:
+                line = ''
+            win.addstr(0 + x, 0, line)
+
+class RouteOverview:
+    def __init__(self, prog, shard):
+        self.shard = shard
+        overview = prog.api.overview()
+        totals = overview['totals']
+        self.creepsProduced = totals['creepsProduced']
+        self.energyCreeps = totals['energyCreeps']
+        self.energyControl = totals['energyControl']
+        self.energyHarvested = totals['energyHarvested']
+        shards = overview['shards']
+        self.rooms = shards[self.shard]['rooms']
+        logging.info('overview %s' % overview)
+
+        self.cpu = -1
+
+    def on_event(self, e, prog, win, addlink):
+        if e['topic'] != 'init': 
+            return
+
+        win.clear()
+        prog.clear_links()
+
+        logging.info('route-overview event %s' % e)
+
+        win.addstr(0, 0, 'Overview')
+        win.addstr(1, 0, 'Global Control Level')
+        win.addstr(2, 0, 'Rooms: %s' % self.rooms);
+        win.addstr(3, 0, 'CPU: %s' % self.cpu);
+
+        a = 'Control Points'.ljust(20)
+        b = 'Energy Harvested'.ljust(20)
+        c = 'Energy on Construct'.ljust(20)
+        d = 'Energy on Creeps'.ljust(20)
+
+        e = 'Creeps Produced'.ljust(20)
+        f = 'Creeps Lost'.ljust(20)
+        g = 'Power Processed'.ljust(20)
+
+        av = str(self.energyControl).ljust(20)
+        bv = str(self.energyHarvested).ljust(20)
+        cv = str(-1).ljust(20)
+        dv = str(self.energyCreeps).ljust(20)
+
+        ev = str(self.creepsProduced).ljust(20)
+        fv = str(-1).ljust(20)
+        gv = str(-1).ljust(20)
+
+        win.addstr(5, 0, a + b + c + d)
+        win.addstr(6, 0, av + bv + cv + dv)
+        win.addstr(7, 0, e + f + g)
+        win.addstr(8, 0, ev + fv + gv)
+
+        addlink(9, 0, '[View Console]', '/console', {
+            'shard': self.shard,
+        })
+
+        y = 10
+        for room in self.rooms:
+            win.addstr(y, 0, self.shard + '#' + room)
+            addlink(y + 1, 0, '[View Room Objects]', '/roomobjs', {
+                'shard': self.shard,
+                'room': room,
+            })
+            addlink(y + 2, 0, '[View Room]', '/roomview', {
+                'shard': self.shard,
+                'room': room,
+            })
+            y += 3
+
 class Program:
     def __init__(self, win, user, pw):
         self.win = win
@@ -206,9 +169,7 @@ class Program:
         #curses.cbreak()
         #self.stdscr.keypad(True)
         #self.stdscr.start_color()
-
-        self.cshard_ndx = 0
-        self.cpanels_ndx = 0
+        curses.start_color()
 
         self.user = user
         self.pw = pw
@@ -218,14 +179,30 @@ class Program:
         self.panels = {}
         self.cur_room_subscription = None
 
-    def ensure_panels_for_shard(self, shard):
-        if shard in self.panels:
-            return
+        self.link_ndx = 0
 
-        self.panels[shard] = [
-            LogPanel(self),
-            HelpPanel(self),
-        ]
+        self.routes = {
+            '/': RouteOverview,
+            '/overview': RouteOverview,
+            '/roomobjs': RouteRoomObjects,
+            '/roomview': RouteRoomView,
+            '/map': RouteMap,
+            '/console': RouteConsole,
+        }
+
+        self.route_object = None
+        self.route = '/'
+        self.route_args = { 'shard': 'shard3' }
+        self.links = []
+
+        curses.init_pair(1, 3, 4)
+        curses.init_pair(2, 5, 6)
+
+        self.subs = []
+
+    def navigate(self, route, args):
+        self.route = route
+        self.route_args = args
 
     def cleanup(self):
         curses.nocbreak()
@@ -236,15 +213,23 @@ class Program:
         while True:
             key = self.win.getkey()
             event_que.put({ 'topic': 'key', 'key': key })
-    
-    def reg_hook_whole_log(self, handler):
-        self.hooks_whole_log.append(handler)
 
-    def reg_hook_room_updates(self, handler):
-        self.hooks_room_update.append(handler)
+    def subscribe(self, watchpoint):
+        self.subs.append(('nonuser', watchpoint))
+        self.ws.subscribe(watchpoint)
 
-    def reg_hook_room_change(self, handler):
-        self.hooks_room_change.append(handler)
+    def subscribe_user(self, watchpoint):
+        self.subs.append(('user', watchpoint))
+        self.ws.subscribe_user(watchpoint)
+
+    def clear_subscriptions(self):
+        for sub in self.subs:
+            sub_type = sub[0]
+            sub_watchpoint = sub[1]
+            if sub_type == 'nonuser':
+                self.ws.unsubscribe(sub_watchpoint)
+            else:
+                self.ws.unsubscribe_user(sub_watchpoint)
 
     def change_room(self, shard, room_name):
         #self.subscribe('room:shard3/E56S31')
@@ -254,6 +239,36 @@ class Program:
             self.ws.unsubscribe('room:%s/%s' % (prev_shard, prev_room_name))
         self.ws.subscribe('room:%s/%s' % (shard, room_name))
         self.cur_room_subscription = (shard, room_name)
+
+    def clear_links(self):
+        self.links = []
+
+    def addlink(self, swin, y, x, text, route, args):
+        swin.addstr(y, x, text)
+        self.links.append((y, x, text, route, args))
+
+    def follow_selected_link(self):
+        if len(self.links) == 0:
+            return
+        lndx = self.link_ndx % len(self.links)
+        logging.info('following selected link %s (%s)' % (lndx, self.link_ndx))
+        link_info = self.links[lndx]
+        logging.info('link_info = %s' % (link_info,))
+        self.route_object = None
+        self.route = link_info[3]
+        self.route_args = link_info[4]
+
+    def colorize_selected_link(self, swin):
+        if len(self.links) == 0:
+            return
+        lndx = self.link_ndx % len(self.links)
+        logging.info('lndx is %s (%s)' % (lndx, self.link_ndx))
+        for x in range(0, len(self.links)):
+            link_info = self.links[x];
+            if x == lndx:
+                swin.addstr(link_info[0], link_info[1], link_info[2], curses.color_pair(1))
+            else:
+                swin.addstr(link_info[0], link_info[1], link_info[2], curses.color_pair(2))
 
     def main(self):
         event_que = queue.Queue()
@@ -265,9 +280,6 @@ class Program:
 
         self.api = screepsapi.API(u=self.user, p=self.pw, secure=True)
 
-        self.panels['#main'] = []
-        self.panels['#main'].append(OverviewPanel(self))
-
         ith = threading.Thread(target=self.input_entry, args=(event_que,))
         ith.daemon = True
         ith.start()
@@ -275,97 +287,52 @@ class Program:
         lkey = None
 
         while True:
-            self.show_shard_bar()
-            self.show_menu_bar()
             h, w = self.win.getmaxyx()
             swin = self.win.derwin(2, 0)
-            if len(list(self.panels.keys())) > 0:
-                # During bootup. We have no panels because we don't know
-                # about any shards. We have to wait until the server sends
-                # something about a shard.
-                cshard = list(self.panels.keys())[self.cshard_ndx]
-                self.cpanels_ndx = self.cpanels_ndx % len(self.panels[cshard])
-                cpanel = self.panels[cshard][self.cpanels_ndx]
-                cpanel.update(swin, lkey)
-            else:
-                # Just let the user know we are waiting to load up the
-                # shards and associated panels for each shard.
-                self.win.addnstr(0, 0, '[waiting for server event]', w)
-            self.win.refresh()
 
-            panels = self.get_cshard_panels()
+            addlink = lambda y, x, text, route, args: self.addlink(
+                swin, y, x, text, route, args
+            )
+
+            if self.route_object is None:
+                logging.info('creating route object %s:%s' % (
+                    self.route, self.route_args
+                ))
+                self.clear_subscriptions()
+                self.route_object = self.routes[self.route](self, **self.route_args)
+                self.route_object.on_event({ 'topic': 'init' }, self, swin, addlink)
+                self.colorize_selected_link(swin)
+                swin.refresh()
 
             lkey = None
             e = event_que.get()
-            # hooks_room_update
-            if e['topic'] != 'key':
-                self.ensure_panels_for_shard(e['shard'])
 
-                if e['topic'] == 'log-whole':
-                    for handler in self.hooks_whole_log:
-                        handler(e['msgs'])
-                elif e['topic'] == 'obj':
-                    for handler in self.hooks_room_update:
-                        handler(e['id'], e['obj'])
+            if e['topic'] != 'key':
+                self.route_object.on_event(e, self, swin, addlink)
+                self.colorize_selected_link(swin)
+                swin.refresh()
             else:
                 key = e['key']
-
+                logging.info('key pressed %s' % key)
                 if key == 'q':
                     self.cleanup()
                     return
-                elif key == 'a' and panels is not None:
-                    self.cpanels_ndx = (self.cpanels_ndx - 1) % len(panels)
-                    panels[self.cpanels_ndx].on_show(swin)
-                elif key == 'd' and panels is not None:
-                    self.cpanels_ndx = (self.cpanels_ndx + 1) % len(panels)
-                    panels[self.cpanels_ndx].on_show(swin)
-                elif key == 'z':
-                    self.increment_cshard_ndx(-1)
-                elif key == 'c':
-                    self.increment_cshard_ndx(1)
-
-                lkey = key
-
-    def show_shard_bar(self):
-        pstr = []
-
-        shards = list(self.panels.keys())
-
-        for x in range(0, len(shards)):
-            if self.cshard_ndx == x:
-                pstr.append('[%s]' % shards[x])
-            else:
-                pstr.append(shards[x])
-
-        self.win.addstr(0, 0, ' '.join(pstr))
-
-
-    def increment_cshard_ndx(self, amount):
-        shards = list(self.panels.keys())
-        self.cshard_ndx = (self.cshard_ndx + amount) % len(shards)
-
-    def get_cshard_panels(self):
-        shards = list(self.panels.keys())
-        if len(shards) == 0:
-            return None
-        return self.panels[shards[self.cshard_ndx]]
-
-    def show_menu_bar(self):
-        panels = self.get_cshard_panels()
-        if panels is None:
-            return
-
-        pstr = []
-
-        for x in range(0, len(panels)):
-            panel = panels[x]
-            title = panel.get_menu_title()
-            if x == self.cpanels_ndx:
-                pstr.append('[%s]' % title)
-            else:
-                pstr.append(title)
-
-        self.win.addstr(1, 0, ' '.join(pstr))
+                elif key == '\n':
+                    self.follow_selected_link()
+                    self.link_ndx = 0
+                    swin.refresh()
+                elif key == 'KEY_UP':
+                    self.link_ndx -= 1
+                    self.colorize_selected_link(swin)
+                    swin.refresh()
+                elif key == 'KEY_DOWN':
+                    self.link_ndx += 1
+                    self.colorize_selected_link(swin)
+                    swin.refresh()
+                else:
+                    self.route_object.on_event(e, self, swin, addlink)
+                    self.colorize_selected_link(swin)
+                    swin.refresh()
 
 def main(win, args):
     args = args[0]
