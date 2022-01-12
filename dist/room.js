@@ -307,10 +307,14 @@ class Room {
     if (state === 'on') {
       if (used < on_amount) {
         m.aconts[cont.id] = 'off';
+      } else {
+        m.aconts[cont.id] = 'on';
       } 
     } else {
       if (used > off_amount) {
         m.aconts[cont.id] = 'on';
+      } else {
+        m.aconts[cont.id] = 'off';
       }
     }
 
@@ -338,8 +342,8 @@ class Room {
     this.containers_near_sources = [];
     this.active_containers_near_sources = [];
     this.containers_near_sources_with_energy = [];
-    this.container_adj_controller = [];
-    this.active_container_adj_controller = [];
+    this.containers_adj_controller = [];
+    this.active_containers_adj_controller = [];
 
     _.each(this.room.find(game.FIND_STRUCTURES), s => {
       this.structs.push(s);
@@ -358,11 +362,11 @@ class Room {
             if (s.store.getUsedCapacity(game.RESOURCE_ENERGY) > 0) {
               this.containers_near_sources_with_energy.push(s);
             }
-            if (s.pos.isNearTo(this.room.controller)) {
-              this.container_adj_controller.push(s);
-              if (!this.container_evaluate_state(s, 500, 1500)) {
-                this.active_container_adj_controller.push(s);
-              }
+          }
+          if (s.pos.isNearTo(this.room.controller)) {
+            this.containers_adj_controller.push(s);
+            if (!this.container_evaluate_state(s, 500, 1500)) {
+              this.active_containers_adj_controller.push(s);
             }
           }
           return;
@@ -396,7 +400,7 @@ class Room {
       this.dt_repair(0.5),
       this.dt_push_nearest_csite(),
       this.dt_push_to_objects_with_stores(
-        1.0, this.active_container_adj_controller 
+        1.0, this.active_containers_adj_controller 
       ),
       this.dt_push_controller_always(),
     ];
