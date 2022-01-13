@@ -32,6 +32,30 @@ class CreepMiner {
     return cont.length > 0 ? cont[0] : null;
   }
 
+  find_link_near_storage () {
+    let stor = this.room.get_storage();
+
+    if (!stor) {
+      return null;
+    }
+
+    let links = _.filter(
+      stor.pos.findInRange(game.FIND_STRUCTURES, 1.8), struct => {
+      return struct.structureType === game.STRUCTURE_LINK;
+    });
+
+    return links.length > 0 ? links[0] : null;    
+  }
+
+  find_link_near_container (cont) {
+    let links = _.filter(
+      cont.pos.findInRange(game.FIND_STRUCTURES, 1.8), struct => {
+      return struct.structureType === game.STRUCTURE_LINK;
+    });
+
+    return links.length > 0 ? links[0] : null;
+  }
+
   tick () {
     let source_id = this.creep.memory.s;
     let source = game.getObjectById()(source_id);
@@ -40,6 +64,25 @@ class CreepMiner {
     let cont = this.find_container_near_source(source);
 
     if (cont) {
+      let link = this.find_link_near_container(cont);
+      let dlink = this.find_link_near_storage();
+
+      if (!link) {
+        if (this.room.csites.length === 0) {
+          let pos = this.creep.pos;
+          let x = pos.x;
+          let y = pos.y;
+          let jmp = [-1, 1];
+          x += jmp[Math.round(Math.random())];
+          y += jmp[Math.round(Math.random())];
+          // Try to build a link around this container.
+          this.room.room.createConstructionSite(
+            x, y,
+            game.STRUCTURE_LINK
+          );
+        }
+      }
+
       if (!cont.pos.isEqualTo(this.creep.pos)) {
         this.move_to(cont);
       } else {

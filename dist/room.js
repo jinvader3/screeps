@@ -58,10 +58,31 @@ class Room {
     return this.room.controller;
   }
 
+  get_storage () {
+    return this.room.storage;
+  }
+
   think_build_creep () {
   }
 
   add_creep (creep) {
+    creep._upgradeController = creep.upgradeController;
+    creep.upgradeController = trgt => {
+      let res = creep._upgradeController(trgt);
+    
+      if (res === game.OK) {
+        let opto = this.room.memory.opto;
+
+        let work = _.sumBy(
+          creep.body, part => part.type === game.WORK ? 1 : 0
+        );
+
+        opto.energy_spent_control += work;
+      }
+
+      return res;
+    };
+
     switch (creep.memory.c) {
       case 'gw': 
         this.creeps.push(new CreepGeneralWorker(this, creep));
@@ -99,9 +120,35 @@ class Room {
     function group_count (gname) {
       return creep_group_counts[gname] || 0;
     }
-
-    this.reg_put_intents = [];
-    this.reg_get_intents = [];
+    
+    ////////////////////////////////////////////////////////////
+    let cur_opto_cycle = game.time() >> 11;
+    this.room.memory.opto = this.room.memory.opto || {};
+    let opto = this.room.memory.opto;
+    if (cur_opto_cycle !== opto.cycle) {
+      // Save previous heuristic. This should over time reflect
+      // the direction needed to improve performance.
+      opto.history = opto.history || [];
+      if (opto.worker_level_adj !== undefined) {
+        opto.history.push({
+          control: opto.energy_spent_control,
+          worker_level_adj: opto.worker_level_adj,
+          hauler_level_adj: opto.hauler_level_adj
+        });
+      }
+      // Start a new cycle with a random offset.
+      opto.cycle = cur_opto_cycle;
+      // Generate new random multi-dimensional variable offset.
+      opto.worker_level_adj = 
+        Math.round(Math.random() * 4) - 2;
+      opto.hauler_level_adj =
+        Math.round(Math.random() * 4) - 2;
+      opto.energy_spent_control = 0;
+      console.log('new opto cycle', opto);
+    } else {
+      console.log('old opto cycle', opto);
+    }
+    ////////////////////////////////////////////////////////////
 
     _.each(this.creeps, creep => {
       if (creep.creep.memory === undefined) {
@@ -121,7 +168,11 @@ class Room {
       // We must have at least one source.
       this.sources.length > 0) {
       this.spawns[0].spawnCreep(
-        [game.WORK, game.WORK, game.WORK, game.WORK, game.WORK, game.MOVE],
+        [
+          game.WORK, game.WORK, game.WORK, 
+          game.WORK, game.WORK, game.CARRY,
+          game.MOVE
+        ],
         this.room.name + ':' + game.time(),
         {
           memory: { 'c': 'miner', 'g': 'minera', 's': this.sources[0].id },
@@ -134,7 +185,11 @@ class Room {
       this.sources.length > 1 && 
       this.spawns.length > 0) {
       this.spawns[0].spawnCreep(
-        [game.WORK, game.WORK, game.WORK, game.WORK, game.WORK, game.MOVE],
+        [
+          game.WORK, game.WORK, game.WORK, 
+          game.WORK, game.WORK, game.CARRY,
+          game.MOVE
+        ],
         this.room.name + ':' + game.time(),
         {
           memory: { 'c': 'miner', 'g': 'minerb', 's': this.sources[1].id },
@@ -244,6 +299,9 @@ class Room {
       let unit_count = Math.floor(ea / unit_cost);
       let body_spec = [];
 
+      // Lock workers at level 7.
+      unit_count = Math.min(unit_count, 7) + opto.worker_level_adj;
+
       for (let x = 0; x < unit_count; ++x) {
         body_spec.push(game.WORK);
         body_spec.push(game.CARRY);
@@ -266,6 +324,9 @@ class Room {
       let unit_cost = 50 + 50;
       let unit_count = Math.floor(ea / unit_cost);
       let body_spec = [];
+
+      // Lock hauler at level 18.
+      unit_count = Math.min(unit_count, 18) + opto.hauler_level_adj;
 
       for (let x = 0; x < unit_count; ++x) {
         body_spec.push(game.CARRY);
@@ -332,6 +393,8 @@ class Room {
   tick (task) {
     // The `tick_need_spawn` will populate this.
     this.creep_group_counts = {}
+    this.reg_put_intents = [];
+    this.reg_get_intents = [];
 
     this.spawns = this.room.find(game.FIND_MY_SPAWNS);
     this.sources = this.room.find(game.FIND_SOURCES); 
@@ -352,6 +415,8 @@ class Room {
     this.containers_near_sources_with_energy = [];
     this.containers_adj_controller = [];
     this.active_containers_adj_controller = [];
+    this.links = [];
+    this.links_adj_storage = [];
 
     _.each(this.room.find(game.FIND_STRUCTURES), s => {
       this.structs.push(s);
@@ -360,6 +425,15 @@ class Room {
         case game.STRUCTURE_TOWER: this.towers.push(s); return;
         case game.STRUCTURE_SPAWN: this.spawns.push(s); return;
         case game.STRUCTURE_ROAD: this.roads.push(s); return;
+        case game.STRUCTURE_LINK:
+          this.links.push(s);
+          let rstor = this.room.storage;
+          if (rstor) {
+            if (s.pos.isNearTo(rstor)) {
+              this.links_adj_storage.push(s);
+            }
+          }
+          return;
         case game.STRUCTURE_CONTAINER: 
           this.containers.push(s); 
           if (_.some(this.sources, src => s.pos.isNearTo(src))) {
@@ -441,13 +515,20 @@ class Room {
         [
           // If we have workers.
           this.dt_pull_from_objects_with_stores(
+            0.0, this.links_adj_storage,
+          ),
+          this.dt_pull_from_objects_with_stores(
             0.0, this.active_containers_near_sources
           ),
           this.dt_pull_energy_nearby_sources(),
         ],
         [
           // If there are no workers. Then, do their job.
-          this.dt_pull_storage(),
+          // If we have workers.
+          this.dt_pull_from_objects_with_stores(
+            0.0, this.links_adj_storage,
+          ),
+           this.dt_pull_storage(),
           this.dt_pull_from_objects_with_stores(
             0.0, this.containers_near_sources_with_energy
           ),

@@ -50,6 +50,7 @@ if (global['Game'] !== undefined) {
     STRUCTURE_CONTROLLER: STRUCTURE_CONTROLLER,
     STRUCTURE_TOWER: STRUCTURE_TOWER,
     STRUCTURE_CONTAINER: STRUCTURE_CONTAINER,
+    STRUCTURE_LINK: STRUCTURE_LINK,
     REACTIONS: REACTIONS,
     LOOK_STRUCTURES: LOOK_STRUCTURES,
     LOOK_ENERGY: LOOK_ENERGY,
@@ -110,6 +111,7 @@ if (global['Game'] !== undefined) {
     STRUCTURE_CONTROLLER: 'structure_controller',
     STRUCTURE_TOWER: 'structure_tower',
     STRUCTURE_CONTAINER: 'structure_container',
+    STRUCTURE_LINK: 'structure_link',
     LOOK_STRUCTURES: 'look_structures',
     LOOK_ENERGY: 'look_energy',
     REACTIONS: {
