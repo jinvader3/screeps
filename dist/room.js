@@ -46,6 +46,14 @@ class Room {
     }
   }
 
+  get_name () {
+    return this.room.name;
+  }
+
+  get_terminal () {
+    return this.room.terminal;
+  }
+
   get_controller () {
     return this.room.controller;
   }

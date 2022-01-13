@@ -50,10 +50,14 @@ if (global['Game'] !== undefined) {
     STRUCTURE_CONTROLLER: STRUCTURE_CONTROLLER,
     STRUCTURE_TOWER: STRUCTURE_TOWER,
     STRUCTURE_CONTAINER: STRUCTURE_CONTAINER,
+    REACTIONS: REACTIONS,
     LOOK_STRUCTURES: LOOK_STRUCTURES,
     LOOK_ENERGY: LOOK_ENERGY,
     memory: () => Memory,
     cpu: () => Game.cpu,
+    ORDER_SELL: ORDER_SELL,
+    ORDER_BUY: ORDER_BUY,
+    market: () => Game.market,
   };
 } else {
   // The actual constants are wrong which is good because code should
@@ -71,6 +75,9 @@ if (global['Game'] !== undefined) {
 
   const g_creeps = {};
   const g_rooms = {};
+
+  let g_market = {
+  };
 
   module.exports = {
     _: _,
@@ -105,9 +112,33 @@ if (global['Game'] !== undefined) {
     STRUCTURE_CONTAINER: 'structure_container',
     LOOK_STRUCTURES: 'look_structures',
     LOOK_ENERGY: 'look_energy',
+    REACTIONS: {
+      H: {
+        O: 'OH',
+        L: 'LH',
+      },
+      O: {
+        H: 'OH',
+        L: 'LO',
+      },
+      L: {
+        H: 'LH',
+        O: 'LO',
+      },
+      OH: {
+        LH: 'LH2O',
+        LO: 'LHO2',
+      },
+    },
     memory: () => g_memory,
     memory_clear: () => {
       g_memory = {};
+    },
+    ORDER_SELL: 'order_sell',
+    ORDER_BUY: 'order_buy',
+    market: () => g_market,
+    set_market: (v) => {
+      g_market = v;
     },
   };
 }

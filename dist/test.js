@@ -8,8 +8,71 @@ const { TaskEngine } = require('./task');
 const { CreepUpgrader } = require('./creepupgrader');
 const { CreepClaimer } = require('./creepclaimer');
 const { CreepDummy } = require('./creepdummy');
+const { Terminal } = require('./terminal');
 const game = require('./game');
 const _ = game._;
+
+
+test.serial('market:basic', t => {
+    let room = {
+        get_terminal: () => {
+        },
+        get_name: () => {
+            return 'E32S54';
+        },
+    };
+
+    let term = new Terminal(room);
+
+    let orders = [
+        { type: game.ORDER_BUY, resourceType: 'energy', amount: 1020, price: 0.01 },
+        { type: game.ORDER_SELL, resourceType: 'energy', amount: 1010, price: 0.01 },
+
+        { type: game.ORDER_SELL, resourceType: 'H', amount: 2, price: 1.3 },
+        { type: game.ORDER_BUY, resourceType: 'H', amount: 5, price: 0.3 },
+        { type: game.ORDER_SELL, resourceType: 'H', amount: 7, price: 0.03 },
+        { type: game.ORDER_BUY, resourceType: 'H', amount: 3, price: 2.3 },
+
+        { type: game.ORDER_SELL, resourceType: 'O', amount: 12, price: 3.3 },
+        { type: game.ORDER_BUY, resourceType: 'O', amount: 3, price: 1.1 },
+        { type: game.ORDER_SELL, resourceType: 'O', amount: 9, price: 0.02 },
+        { type: game.ORDER_BUY, resourceType: 'O', amount: 1, price: 5.8 },
+
+        { type: game.ORDER_SELL, resourceType: 'L', amount: 3, price: 2.3 },
+        { type: game.ORDER_BUY, resourceType: 'L', amount: 22, price: 0.2 },
+        { type: game.ORDER_SELL, resourceType: 'L', amount: 5, price: 1.9 },
+        { type: game.ORDER_BUY, resourceType: 'L', amount: 3, price: 3.8 },
+
+        { type: game.ORDER_SELL, resourceType: 'LH2O', amount: 5, price: 1.3 },
+        { type: game.ORDER_BUY, resourceType: 'LH2O', amount: 4, price: 5.2 },
+        { type: game.ORDER_SELL, resourceType: 'LH2O', amount: 9, price: 2.1 },
+        { type: game.ORDER_BUY, resourceType: 'LH2O', amount: 6, price: 1.2 },
+
+        { type: game.ORDER_SELL, resourceType: 'LHO2', amount: 9, price: 1.0 },
+        { type: game.ORDER_BUY, resourceType: 'LHO2', amount: 12, price: 0.6 },
+        { type: game.ORDER_SELL, resourceType: 'LHO2', amount: 3, price: 0.3 },
+        { type: game.ORDER_BUY, resourceType: 'LHO2', amount: 9, price: 1.2 },
+     ];
+
+    game.set_market({
+        getAllOrders: () => orders,
+        calcTransactionCost: (rtype, ra, rb) => {
+            return 1;
+        },
+    });
+
+    let res = term.find_product_supply_and_demand_of_batch('H', 2);
+    //t.truthy(res.sell_price === 1.3);
+    //t.truthy(res.buy_price === 2.3);
+    //t.truthy(res.sell_orders.length === 1);
+    //t.truthy(res.buy_orders.length === 1);
+    //t.truthy(res.sell_orders[0].price === 1.3);
+    //t.truthy(res.buy_orders[0].price === 2.3);
+
+    term.find_trades(200, 100);
+
+    t.pass();
+});
 
 test.serial('creep_iface', t => {
   // Ensure each creep sub-type has the proper interface.
