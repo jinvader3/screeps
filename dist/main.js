@@ -6,6 +6,14 @@ const { TaskEngine } = require('./task');
 module.exports.loop = function () {
   let rooms = {};
 
+  let extra_config = {
+    'E57S33': {
+        'remote_sources': [
+            '5bbcb06f9099fc012e63c2ce',
+        ],
+    },
+  };
+
   for (let name in game.memory().creeps) {
     if (game.creeps()[name] === undefined) {
       delete game.memory().creeps[name];
@@ -16,7 +24,7 @@ module.exports.loop = function () {
     let room = game.rooms()[name];
     if (room.controller !== undefined && room.controller.my) {
       //console.log('@room obj made', name);
-      let robj = new Room(room);
+      let robj = new Room(room, extra_config[name] || {});
       rooms[name] = robj;
     }
   }	

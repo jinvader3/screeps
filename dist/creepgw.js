@@ -86,8 +86,10 @@ class CreepGeneralWorker {
     }
     
     if (res === game.ERR_INVALID_TARGET || res === game.ERR_NO_BODYPART) {
+      let creep_cap = this.creep.store.getFreeCapacity(restype);
+      let trgt_cap = trgt.store.getUsedCapacity(restype);
       res = this.creep.withdraw(
-        trgt, restype, this.creep.store.getFreeCapacity(restype)
+        trgt, restype, Math.min(creep_cap, trgt_cap)
       );
     }
 
@@ -106,6 +108,10 @@ class CreepGeneralWorker {
   }
 
   put (trgt, restype) {
+    if (!trgt) {
+      return false;
+    }
+
     if (this.creep.store.getUsedCapacity(restype) === 0) {
       return false;
     }
@@ -147,7 +153,7 @@ class CreepGeneralWorker {
       return false;
     }
 
-    if (res === game.ERR_INVALID_TARGET || res === game.ERR_NO_BODYPART) {
+    if (trgt.store && (res === game.ERR_INVALID_TARGET || res === game.ERR_NO_BODYPART)) {
       let amount = this.creep.store.getUsedCapacity(restype);
       let most = trgt.store.getFreeCapacity(restype);
       res = this.creep.transfer(trgt, restype, Math.min(amount, most));

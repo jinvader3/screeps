@@ -11,7 +11,7 @@ class Room {
   constructor (room) {
     this.room = room;
     this.creeps = [];
-   this.room.memory.mi = this.room.memory.mi || {};
+    this.room.memory.mi = this.room.memory.mi || {};
     this.room.memory.jobs = this.room.memory.jobs || [];
     this.jobs = this.room.memory.jobs;
     this.room.memory.jobs_uid = this.room.memory.jobs_uid || 0;
@@ -140,13 +140,10 @@ class Room {
       opto.cycle = cur_opto_cycle;
       // Generate new random multi-dimensional variable offset.
       opto.worker_level_adj = 
-        Math.round(Math.random() * 4) - 2;
+        -Math.round(Math.random() * 4);
       opto.hauler_level_adj =
-        Math.round(Math.random() * 4) - 2;
+        -Math.round(Math.random() * 4);
       opto.energy_spent_control = 0;
-      console.log('new opto cycle', opto);
-    } else {
-      console.log('old opto cycle', opto);
     }
     ////////////////////////////////////////////////////////////
 
@@ -159,6 +156,13 @@ class Room {
       }
       creep_group_counts[creep.creep.memory.g]++;
     });
+
+    let roomEnergy = this.room.energyCapacityAvailable;
+    if (creep_group_counts.worker === 0 && creep_group_counts.hauler === 0) {
+      console.log(`emergency room energy levels set for room ${this.room.name}`);
+      roomEnergy = 300;
+    }
+
 
     if (
       // We must have zero miner type As.
@@ -293,14 +297,14 @@ class Room {
     //console.log(`NEED_ANOTHER_WORKER=${need_another}`);
 
     if (need_another) {
-      let ea = this.room.energyCapacityAvailable;
+      let ea = roomEnergy;
       // WORK, CARRY, MOVE, MOVE is one unit
       let unit_cost = 100 + 50 + 50 + 50;
       let unit_count = Math.floor(ea / unit_cost);
       let body_spec = [];
 
       // Lock workers at level 7.
-      unit_count = Math.min(unit_count, 7) + opto.worker_level_adj;
+      unit_count = Math.max(Math.min(unit_count + opto.worker_level_adj, 7), 1);
 
       for (let x = 0; x < unit_count; ++x) {
         body_spec.push(game.WORK);
@@ -319,14 +323,14 @@ class Room {
     }
 
     if (creep_group_counts.hauler === 0) {
-      let ea = this.room.energyCapacityAvailable;
+      let ea = roomEnergy;
       // WORK, CARRY, MOVE, MOVE is one unit
       let unit_cost = 50 + 50;
       let unit_count = Math.floor(ea / unit_cost);
       let body_spec = [];
 
       // Lock hauler at level 18.
-      unit_count = Math.min(unit_count, 18) + opto.hauler_level_adj;
+      unit_count = Math.max(Math.min(unit_count + opto.hauler_level_adj, 18), 1);
 
       for (let x = 0; x < unit_count; ++x) {
         body_spec.push(game.CARRY);
@@ -344,15 +348,25 @@ class Room {
 
     if (creep_group_counts.upgrader === 0) {
       let ea = this.room.energyCapacityAvailable;
-      let unit_cost = 50 + 100 + 100 + 50;
-      let unit_count = Math.floor(ea / unit_cost);
       let body_spec = [];
 
-      for (let x = 0; x < unit_count; ++x) {
-        body_spec.push(game.CARRY);
+      body_spec.push(game.CARRY);
+      body_spec.push(game.MOVE);        
+
+      let work_part_needed;
+
+      if (this.sources.length == 1) {
+        work_part_needed = 2;
+      } else {
+        work_part_needed = 4;
+      }
+
+      if (ea - (100 + work_part_needed * 100) >= 100) {
         body_spec.push(game.WORK);
+      }
+
+      for (let x = 0; x < work_part_needed; ++x) {
         body_spec.push(game.WORK);
-        body_spec.push(game.MOVE);
       }
 
       this.spawns[0].spawnCreep(
@@ -476,8 +490,7 @@ class Room {
     // the energy to?
     let dt_push = [
       this.dt_push_controller_below_ticks(1000),
-      this.dt_push_to_objects_with_stores(1.0, this.spawns),
-      this.dt_push_to_objects_with_stores(1.0, this.exts),
+      this.dt_push_to_objects_with_stores(1.0, this.spawns.concat(this.exts)),
       this.dt_push_to_objects_with_stores(1.0, this.towers),
       this.dt_cond(
         () => {
@@ -528,7 +541,7 @@ class Room {
           this.dt_pull_from_objects_with_stores(
             0.0, this.links_adj_storage,
           ),
-           this.dt_pull_storage(),
+          this.dt_pull_storage(),
           this.dt_pull_from_objects_with_stores(
             0.0, this.containers_near_sources_with_energy
           ),
@@ -545,8 +558,7 @@ class Room {
           this.dt_push_storage(10000)
         ],
       ),
-      this.dt_push_to_objects_with_stores(1.0, this.spawns),
-      this.dt_push_to_objects_with_stores(1.0, this.exts),
+      this.dt_push_to_objects_with_stores(1.0, this.spawns.concat(this.exts)),
       this.dt_push_to_objects_with_stores(1.0, this.towers),
       this.dt_push_container_adjacent_controller(),
     ];

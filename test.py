@@ -48,7 +48,76 @@ class RouteRoomObjects:
     pass
 
 class RouteRoomView:
-    pass
+    def __init__(self, prog, shard, room):
+      self.shard = shard
+      self.room = room
+      prog.subscribe('room:%s/%s' % (shard, room))
+      self.objs = {}
+      self.terrain = []
+
+      terrain = prog.api.room_terrain(room=room, shard=shard)['terrain']
+
+      for spot in terrain:
+        self.terrain.append((spot['x'], spot['y'], spot['type']))        
+
+    def type_to_char(self, otype):
+      m = {
+        'creep': 'C',
+        'extension': 'E',
+        'tower': 'T',
+        'spawn': 'S',
+        'storage': 'O',
+        'road': '_',
+        'container': '[',
+        'mineral': 'Z',
+        'source': 'R',
+        'swamp': '~',
+        'wall': '#',
+        'plain': '.',
+      }
+
+      return m.get(otype, '?')
+
+    def on_event(self, e, prog, win, addlink):
+      if e['topic'] != 'obj':
+        return
+
+      logging.info('roomview obj %s' % str(e))
+
+      if e['topic'] == 'obj':
+        oid = e['id']
+        obj = e['obj']
+        if e['room'] != self.room:
+          return
+        if e['shard'] != self.shard:
+          return
+
+        if oid not in self.objs:
+          self.objs[oid] = {}
+
+        for k in obj:
+          self.objs[oid][k] = obj[k]
+
+      win.clear()
+      prog.clear_links()
+      h, w = win.getmaxyx()
+
+      for spot in self.terrain:
+        try:
+          win.addstr(spot[1], spot[0], self.type_to_char(spot[2]))
+        except curses.error:
+          pass
+
+      for oid in self.objs:
+        obj = self.objs[oid]
+        if 'x' not in obj or 'y' not in obj:
+          continue
+        x = obj['x']
+        y = obj['y']
+        try:
+          addlink(y, x, self.type_to_char(obj['type']), None, {})
+        except curses.error:
+          pass
 
 class RouteMap:
     pass
@@ -170,6 +239,7 @@ class Program:
         #self.stdscr.keypad(True)
         #self.stdscr.start_color()
         curses.start_color()
+        curses.curs_set(0)
 
         self.user = user
         self.pw = pw
@@ -190,6 +260,7 @@ class Program:
             '/console': RouteConsole,
         }
 
+        self.route_history = []
         self.route_object = None
         self.route = '/'
         self.route_args = { 'shard': 'shard3' }
@@ -246,6 +317,15 @@ class Program:
     def addlink(self, swin, y, x, text, route, args):
         swin.addstr(y, x, text)
         self.links.append((y, x, text, route, args))
+
+    def selected_link_special(self):
+        if len(self.links) == 0:
+            return
+        lndx = self.link_ndx % len(self.links)
+        link_info = self.links[lndx]
+        if link_info[3] is None:
+          return link_info[4]
+        return None
 
     def follow_selected_link(self):
         if len(self.links) == 0:
@@ -315,12 +395,21 @@ class Program:
                 key = e['key']
                 logging.info('key pressed %s' % key)
                 if key == 'q':
-                    self.cleanup()
-                    return
+                    if len(self.route_history) == 0:
+                      self.cleanup()
+                      return
+                    self.route, self.route_args = self.route_history.pop()
+                    self.route_object = None
                 elif key == '\n':
-                    self.follow_selected_link()
-                    self.link_ndx = 0
-                    swin.refresh()
+                    special_args = self.selected_link_special()
+                    if special_args is None:
+                      self.route_history.append((self.route, self.route_args))
+                      self.follow_selected_link()
+                      self.link_ndx = 0
+                      swin.refresh()
+                    else:
+                      ne = { 'topic': 'link', 'args': special_args }
+                      self.route_object.on_event(ne, self, swin, addlink)
                 elif key == 'KEY_UP':
                     self.link_ndx -= 1
                     self.colorize_selected_link(swin)
