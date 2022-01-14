@@ -1,24 +1,8 @@
 const game = require('./game');
+const { Creep } = require('./creep');
 const _ = game._;
 
-class CreepUpgrader {
-  constructor (room, creep) {
-    this.creep = creep;
-    this.room = room;
-  }
-
-  get_pos() {
-    return this.creep.pos;
-  }
-
-  get_group() {
-    return this.creep.memory.g;
-  }
-
-  get_name () {
-    return this.creep.name;
-  }
-
+class CreepUpgrader extends Creep {
   move_to (trgt) {
     return this.creep.moveTo(trgt);
   }

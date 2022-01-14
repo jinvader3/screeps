@@ -1,24 +1,8 @@
+const { Creep } = require('./creep');
 const game = require('./game');
 const _ = game._;
 
-class CreepGeneralWorker {
-  constructor (room, creep) {
-    this.creep = creep;
-    this.room = room;
-  }
-
-  get_pos () {
-    return this.creep.pos;
-  }
-
-  get_name () {
-    return this.creep.name;
-  }
-
-  get_group() {
-    return this.creep.memory.g;
-  }
-
+class CreepGeneralWorker extends Creep {
   get_mode () {
     let mode = this.creep.memory.m;
     if (mode === undefined || mode === null) {
@@ -36,11 +20,10 @@ class CreepGeneralWorker {
   }
 
   set_target (trgt) {
-    if (trgt === null) {
-      this.creep.memory.t = null;
-    } else {
-      this.creep.memory.t = trgt.id;
-    }
+    this.creep.memory.t = {
+        id: trgt.trgt ? trgt.trgt.id : null,
+        oneshot: trgt.oneshot,
+    };
   }
 
   set_target_id (id) {
@@ -48,10 +31,27 @@ class CreepGeneralWorker {
   }
 
   get_target () {
-    if (!this.creep.memory.t) {
-      return null;
+    let t = this.creep.memory.t;
+
+    if (typeof t !== 'object') {
+        return {
+            trgt: null,
+            oneshot: false,
+        };
     }
-    return game.getObjectById()(this.creep.memory.t);
+
+    let trgt_obj = null;
+    
+    if (t && t.id) {
+        trgt_obj = game.getObjectById()(t.id);
+    }
+
+    console.log('get_target', t);
+
+    return {
+        trgt: trgt_obj,
+        oneshot: t ? t.oneshot : false,
+    };
   }
 
   count_work_parts () {
@@ -61,28 +61,28 @@ class CreepGeneralWorker {
 
   get (trgt, restype) {
     if (this.creep.store.getFreeCapacity(restype) === 0) {
-      return false;
+      return { done: false, oneshot: true };
     }
 
     let res = this.creep.pickup(trgt);
 
     if (res === game.OK) {
-      return true;
+      return { done: true, oneshot: true };
     }
 
     if (res === game.ERR_FULL) {
-      return false;
+      return { done: false, oneshot: true };
     }
 
     if (res === game.ERR_INVALID_TARGET) {
       res = this.creep.harvest(trgt);
       if (res === game.OK) {
-        return true;
+        return { done: true, oneshot: true };
       }
     }
 
     if (res === game.ERR_NOT_ENOUGH_RESOURCES) {
-      return false;
+      return { done: false, oneshot: true };
     }
     
     if (res === game.ERR_INVALID_TARGET || res === game.ERR_NO_BODYPART) {
@@ -94,26 +94,24 @@ class CreepGeneralWorker {
     }
 
     if (res === game.ERR_FULL || res === game.ERR_NOT_ENOUGH_RESOURCES) {
-      return false;
+      return { done: false, oneshot: true };
     }
 
     if (res == game.ERR_NOT_IN_RANGE) {
       let res2 = this.move_to(trgt);
-      if (res2 === game.OK) {
-        return res;
-      }
-      return res2;
+      return { done: true, oneshot: false };
     }
-    return res;
+
+    return { done: true, oneshot: true };
   }
 
   put (trgt, restype) {
     if (!trgt) {
-      return false;
+      return { done: false, oneshot: true };
     }
 
     if (this.creep.store.getUsedCapacity(restype) === 0) {
-      return false;
+      return { done: false, oneshot: true };
     }
 
     let res;
@@ -122,11 +120,11 @@ class CreepGeneralWorker {
       res = this.creep.repair(trgt);
 
       if (res === game.OK) {
-        return true;
+        return { done: true, oneshot: true };
       }
 
       if (res === game.ERR_NOT_ENOUGH_RESOURCES) {
-        return false;
+        return { done: false, oneshot: true };
       }
     } else {
       res = game.ERR_INVALID_TARGET;
@@ -135,22 +133,22 @@ class CreepGeneralWorker {
     res = this.creep.upgradeController(trgt);
 
     if (res === game.OK) {
-      return true;
+      return { done: true, oneshot: true };
     }
 
     if (res === game.ERR_NOT_ENOUGH_RESOURCES) {
-      return false;
+      return { done: false, oneshot: true };
     }
 
     if (res === game.ERR_INVALID_TARGET || res === game.ERR_NO_BODYPART) {
       res = this.creep.build(trgt);
       if (res === game.OK) {
-        return true;
+        return { done: true, oneshot: true };
       }
     }
 
     if (res === game.ERR_NOT_ENOUGH_RESOURCES) {
-      return false;
+      return { done: false, oneshot: true };
     }
 
     if (trgt.store && (res === game.ERR_INVALID_TARGET || res === game.ERR_NO_BODYPART)) {
@@ -158,28 +156,28 @@ class CreepGeneralWorker {
       let most = trgt.store.getFreeCapacity(restype);
       res = this.creep.transfer(trgt, restype, Math.min(amount, most));
       if (res === game.OK) {
-        return true;
+        return { done: true, oneshot: true };
       }
     }
 
     if (res === game.ERR_INVALID_TARGET) {
-      return false;
+      return { done: false, oneshot: true };
     }
 
     if (res === game.ERR_NOT_ENOUGH_RESOURCES) {
-      return false;
+      return { done: false, oneshot: true };
     }
 
     if (res === game.ERR_FULL) {
-      return false;
+      return { done: false, oneshot: true };
     }
 
     if (res == game.ERR_NOT_IN_RANGE) {
       let res2 = this.move_to(trgt);
-      return true;
+      return { done: true, oneshot: false };
     } 
 
-    return true;
+    return { done: true, oneshot: true };
   }
 
   move_to (trgt) {
@@ -208,27 +206,31 @@ class CreepGeneralWorker {
       return;
     }
 
+    console.log('here1');
+
     let trgt = this.get_target();
+
+    console.log('here2');
 
     let ecarry = this.creep.store.getUsedCapacity(game.RESOURCE_ENERGY);
     let efree = this.creep.store.getFreeCapacity(game.RESOURCE_ENERGY);
 
-    if (!trgt) {
+    if (!trgt.trgt) {
       let a = this.get_mode() === 'pull' && efree > 0;
       let b = ecarry === 0;
 
       if (a || b) {
         trgt = dt_pull();
         this.set_mode('pull');
-        console.log(this.creep.memory.g, 'pull', trgt);
-        if (!trgt) {
+        console.log(this.creep.memory.g, 'pull', trgt.trgt, trgt.oneshot);
+        if (!trgt.trgt) {
             return null;
         }
       } else {
         trgt = dt_push();
         this.set_mode('push');
-        console.log(this.creep.memory.g, 'push', trgt);
-        if (!trgt) {
+        console.log(this.creep.memory.g, 'push', trgt.trgt, trgt.oneshot);
+        if (!trgt.trgt) {
             return null;
         }
       }
@@ -236,26 +238,38 @@ class CreepGeneralWorker {
       this.set_target(trgt);
     }
 
-    if (trgt) {
+    let res;
+
+    console.log('trgt', trgt.trgt, trgt.oneshot);
+
+    if (trgt.trgt) {
       if (this.get_mode() === 'pull') {
         this.room.reg_get_intent(
           this,
-          trgt,
+          trgt.trgt,
           game.RESOURCE_ENERGY,
           this.creep.store.getFreeCapacity(game.RESOURCE_ENERGY)
         );
-        if (this.get(trgt, game.RESOURCE_ENERGY) === false) {
+        res = this.get(trgt[0], game.RESOURCE_ENERGY);
+
+        let oneshot = trgt.oneshot && (res.oneshot === true);
+        
+        if (res.done === false || oneshot) {
           this.clear_target();
           this.tick(dt_pull, dt_push, cdepth + 1);
         }
       } else {
         this.room.reg_put_intent(
           this, 
-          trgt, 
+          trgt.trgt, 
           game.RESOURCE_ENERGY,
           this.creep.store.getUsedCapacity(game.RESOURCE_ENERGY)
         );
-        if (this.put(trgt, game.RESOURCE_ENERGY) === false) {
+        res = this.put(trgt[0], game.RESOURCE_ENERGY);
+        
+        let oneshot = trgt.oneshot && (res.oneshot === true);
+        
+        if (res.done === false || oneshot) {
           this.clear_target();
           this.tick(dt_pull, dt_push, cdepth + 1);
         }

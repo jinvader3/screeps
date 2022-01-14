@@ -103,6 +103,7 @@ test.serial('creep_iface', t => {
     t.truthy(typeof c.get_pos === 'function');
     t.truthy(typeof c.get_group === 'function');
     t.truthy(c.get_group() === 'okay')
+    t.truthy(typeof c.get_memory === 'function');
   });
 
   t.pass();
@@ -112,7 +113,7 @@ test.serial('bootup', t => {
   game.memory().creeps = {};
   game.memory().creeps['E32S87:apple'] = {
     c: 'gw',
-    g: 'hauler',
+    g: 'worker',
   };
 
   game.creeps()['E32S87:apple'] = {
@@ -121,10 +122,10 @@ test.serial('bootup', t => {
     store: {
       getUsedCapacity: type => {
         t.truthy(type === game.RESOURCE_ENERGY);
-        return 1;
+        return 0;
       },
       getFreeCapacity: type => {
-        return 0;
+        return 10;
       },
     },
     pos: {
@@ -132,18 +133,7 @@ test.serial('bootup', t => {
         return objs[0];
       },
     },
-    repair: (trgt) => {
-      console.log('repair', trgt.id);
-      return game.OK;
-    },
-    pickup: () => {
-      console.log('pickup', trgt.id);
-      return game.OK;
-    },
-    upgradeController: (trgt) => {
-      console.log('upgrade', trgt.id);
-      return game.OK;
-    },
+    pickup: trgt => game.OK,
   };
 
   game.memory().rooms = {
@@ -180,8 +170,25 @@ test.serial('bootup', t => {
     containers: [
     ],
     sources: [
+        {
+            id: 's1',
+            energy: 100,
+            pos: {
+                x: 0,
+                y: 0,
+                findInRange: (what, dist) => {
+                    return [];
+                },
+            },
+        },
     ],
+    lookForAtArea: (code, top, left, bottom, right) => {
+        console.log('lookForAtArea', code, top, left, bottom, right);
+        return [];
+    },
     find: (code) => {
+      console.log('find', code);
+      t.truthy(code !== undefined);
       switch (code) {
         case game.FIND_MY_SPAWNS: return game.rooms()['E32S87'].spawns;
         case game.FIND_SOURCES: return game.rooms()['E32S87'].sources;

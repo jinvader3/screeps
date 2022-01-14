@@ -10,6 +10,7 @@ import queue
 import traceback
 import sys
 import pprint
+import json
 
 class MySocket(screepsapi.Socket):
     def __init__(self, user, pw, eque):
@@ -353,12 +354,21 @@ class Program:
     def main(self):
         event_que = queue.Queue()
 
-        self.ws = MySocket(self.user, self.pw, event_que)
-        wsth = threading.Thread(target=self.ws.start)
-        wsth.daemon = True
-        wsth.start()
+        #self.ws = MySocket(self.user, self.pw, event_que)
+        #wsth = threading.Thread(target=self.ws.start)
+        #wsth.daemon = True
+        #wsth.start()
 
         self.api = screepsapi.API(u=self.user, p=self.pw, secure=True)
+
+        m = self.api.memory(shard='shard3')
+
+        with open('dbg.json', 'w') as fd:
+            fd.write(json.dumps(m))
+
+        exit()
+
+        TURN_BACK_ON_WS_ABOVE()
 
         ith = threading.Thread(target=self.input_entry, args=(event_que,))
         ith.daemon = True

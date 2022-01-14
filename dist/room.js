@@ -8,7 +8,7 @@ const { CreepClaimer } = require('./creepclaimer');
 const { CreepUpgrader } = require('./creepupgrader');
 
 class Room {
-  constructor (room) {
+  constructor (room, ecfg) {
     this.room = room;
     this.creeps = [];
     this.room.memory.mi = this.room.memory.mi || {};
@@ -18,6 +18,7 @@ class Room {
     this.breq = [];
     this.room.memory.res_xfer_intents = this.room.memory.res_xfer_intents || [];
     this.res_xfer_intents = this.room.memory.res_xfer_intents;
+    this.ecfg = ecfg;
   }
 
   request_build_creep (ruid, body_unit, unit_min, unit_max, group, group_count, priority, memory) {
@@ -163,7 +164,6 @@ class Room {
       roomEnergy = 300;
     }
 
-
     if (
       // We must have zero miner type As.
       creep_group_counts.minera < 1 && 
@@ -183,6 +183,28 @@ class Room {
         }
       );
     }
+
+    /*
+    function *miner_bf() {
+        let body = [];
+        body.push(game.MOVE);
+        body.push(game.CARRY);
+        while (true) {
+            body.push(game.WORK);
+            yield body
+        }
+    }
+
+    this.spawnman.reg_build(
+        'miner',
+        'minera',
+        miner_bf,
+        5,
+        {
+            s: this.sources[0].id,
+        }
+    );
+    */
 
     if (
       creep_group_counts.minerb < 1 && 
@@ -452,7 +474,7 @@ class Room {
           this.containers.push(s); 
           if (_.some(this.sources, src => s.pos.isNearTo(src))) {
             this.containers_near_sources.push(s);
-            if (this.container_evaluate_state(s, 500, 1500)) {
+            if (this.container_evaluate_state(s, 100, 1200)) {
               this.active_containers_near_sources.push(s);
             }
             if (s.store.getUsedCapacity(game.RESOURCE_ENERGY) > 0) {
@@ -561,6 +583,7 @@ class Room {
       this.dt_push_to_objects_with_stores(1.0, this.spawns.concat(this.exts)),
       this.dt_push_to_objects_with_stores(1.0, this.towers),
       this.dt_push_container_adjacent_controller(),
+      this.dt_push_storage(100000),
     ];
 
      for (let ndx in this.creeps) {
@@ -668,53 +691,59 @@ class Room {
     }
   }
 
-  dt_pull_storage () {
+  dt_pull_storage (oneshot) {
     return (creep) => {
       if (!this.room.storage) {
-        return null;
+        return [null, false];
       }
 
       if (this.room.storage.store.getUsedCapacity(
         game.RESOURCE_ENERGY
       ) == 0) {
-        return null;
+        return [null, false];
       }
 
-      return this.room.storage;
+      return [this.room.storage, oneshot];
     };
   }
 
   dt_cond (cond_func, dtlist_true, dtlist_false) {
     return creep => {
       if (cond_func()) {
-        return dtlist_true ? dtlist_true : null;
+        return dtlist_true ? [dtlist_true, false] : [null, false];
       }
-      return dtlist_false ? dtlist_false : null;
+      return dtlist_false ? [dtlist_false, false] : [null, false];
     };
   }
 
-  dt_pull_sources () {
+  dt_pull_sources (oneshot) {
     return (creep) => {
       let sources = _.filter(this.sources, s => {
         return this.sum_get_intent(s, game.RESOURCE_ENERGY) < s.energy;
       });
-      return _.sample(_.filter(sources, s => s.energy > 0));
+      return [
+        _.sample(_.filter(sources, s => s.energy > 0)),
+        oneshot
+      ];
     };
   }
 
-  dt_repair (threshold) {
+  dt_repair (threshold, oneshot) {
     return (creep) => {
       let valid = _.filter(this.structs, s => {
         return (s.hits / s.hitsMax) < threshold;
       });
-      return creep.get_pos().findClosestByPath(valid);
+      return [
+        creep.get_pos().findClosestByPath(valid),
+        oneshot
+      ];
     };
   }
 
-  dt_push_storage (threshold_amount) {
+  dt_push_storage (threshold_amount, oneshot) {
     return (creep) => {
       if (!this.room.storage) {
-        return null;
+        return [null, oneshot];
       }
       
       let used = this.room.storage.store.getUsedCapacity(
@@ -725,14 +754,17 @@ class Room {
       );
 
       if (used > threshold_amount) {
-        return null;
+        return [null, oneshot];
       }
 
-      return this.room.storage;
+      return [
+        this.room.storage,
+        oneshot
+      ];
     };
   }
 
-  dt_push_road_repair_nearby (threshold) {
+  dt_push_road_repair_nearby (threshold, oneshot) {
     return (creep) => {
       let pos = creep.creep.pos;
       let structs = this.room.lookForAtArea(
@@ -743,11 +775,11 @@ class Room {
         let ratio = road.hits / road.hitsMax;
         return ratio < threshold;
       });
-      return road;
+      return [road, oneshot];
     };
   }
 
-  dt_pull_energy_containers_nearby_sources () {
+  dt_pull_energy_containers_nearby_sources (oneshot) {
     return (creep) => {
         let conts = _.reduce(this.sources, (iv, source) => {
           let conts = _.filter(
@@ -760,11 +792,14 @@ class Room {
           _.each(conts, cont => iv.push(cont));
           return iv;
         }, []);
-        return creep.get_pos().findClosestByPath(conts);
+        return [
+            creep.get_pos().findClosestByPath(conts),
+            oneshot
+        ];
     };
   }  
 
-  dt_pull_energy_containers_nearby_sources_with_most (min_threshold_amount) {
+  dt_pull_energy_containers_nearby_sources_with_most (min_threshold_amount, oneshot) {
     return (creep) => {
         let conts = _.reduce(this.sources, (iv, source) => {
           let conts = _.filter(
@@ -784,11 +819,14 @@ class Room {
           return au > bu ? -1 : 1;
         });
 
-        return conts.length > 0 ? conts[0] : null;
+        return [
+            conts.length > 0 ? conts[0] : null,
+            oneshot
+        ];
     };
   }  
 
-  dt_pull_energy_nearby_sources () {
+  dt_pull_energy_nearby_sources (oneshot) {
     return (creep) => {
       let energy = _.reduce(this.sources, (iv, source) => {
         let pos = source.pos;
@@ -801,28 +839,30 @@ class Room {
       energy = _.filter(energy, e => {
         return !this.max_get_intent(e, game.RESOURCE_ENERGY);
       });
-      return creep.get_pos().findClosestByPath(energy);
-      //return _.sample(energy);
+      return [
+        creep.get_pos().findClosestByPath(energy),
+        oneshot
+      ];
     };
   }
 
-  dt_push_controller_always () {
+  dt_push_controller_always (oneshot) {
     return (creep) => {
       let c = this.room.controller;
       if (c && c.my) {
-        return c;
+        return [c, oneshot];
       }
-      return null;
+      return [null, oneshot];
     };
   }
 
-  dt_push_controller_below_ticks (below_ticks) {
+  dt_push_controller_below_ticks (below_ticks, oneshot) {
     return (creep) => {
       let c = this.room.controller;
       if (c && c.my && c.ticksToDowngrade <= below_ticks) {
-        return c;
+        return [c, oneshot];
       }
-      return null;
+      return [null, oneshot];
     };
   }
 
@@ -831,27 +871,40 @@ class Room {
       let dte = dt[x];
       let trgt = dte(creep);
 
-      if (trgt === null) {
+      if (!trgt[0]) {
         continue;
       }
 
-      if (trgt.length !== undefined) {
-        // The entry provided a sub-list (decision list) which
-        // we can execute.
-        let res = this.dt_run(trgt, creep);
-        if (res !== null) {
-          return res;
-        } 
-      } else {
-        if (trgt) {
-          return trgt;
+      // It returned a list. Which is going to be a set of
+      // decision tree nodes we need to execute.
+      if (trgt[0].length !== undefined) {
+        let res = this.dt_run(trgt[0], creep);
+        // If it gave us a valid target then return it.
+        if (res[0]) {
+          return {
+            trgt: res[0],
+            oneshot: res[1],
+          }
         }
+        
+        // If not, then keep going.
+        continue;
       }
+
+      // We have a valid target.
+      return {
+        trgt: trgt[0],
+        oneshot: trgt[1],
+      };
     }
-    return null;
+    
+    return {
+        trgt: null,
+        oneshot: false,
+    };
   }
 
-  dt_push_nearest_csite () {
+  dt_push_nearest_csite (oneshot) {
     return (creep) => {
       let cx = creep.creep.pos.x;
       let cy = creep.creep.pos.y;
@@ -868,22 +921,25 @@ class Room {
           bcsite = csite;
         }
       });
-      return bcsite;
+      return [bcsite, oneshot];
     };
   }
 
-  dt_push_container_adjacent_controller () {
+  dt_push_container_adjacent_controller (oneshot) {
     return (creep) => {
         let c = this.room.controller;
         let cont = _.filter(
             c.pos.findInRange(game.FIND_STRUCTURES, 1.8), struct => {
             return struct.structureType === game.STRUCTURE_CONTAINER
         });
-        return cont.length > 0 ? cont[0] : null;
+        return [
+            cont.length > 0 ? cont[0] : null,
+            oneshot
+        ];
     };
   }
 
-  dt_pull_from_objects_with_stores (threshold, objlist) {
+  dt_pull_from_objects_with_stores (threshold, objlist, oneshot) {
     return (creep) => {
       let valids = _.filter(
         objlist, s => {
@@ -899,13 +955,13 @@ class Room {
         }
       );
       if (valids.length === 0) {
-          return null;
+          return [null, oneshot];
       }
-      return creep.get_pos().findClosestByPath(valids);
+      return [creep.get_pos().findClosestByPath(valids), oneshot];
     };
   }
 
-  dt_push_to_objects_with_stores (threshold, objlist) {
+  dt_push_to_objects_with_stores (threshold, objlist, oneshot) {
     return (creep) => {
       let valids = _.filter(
         objlist, s => {
@@ -921,9 +977,9 @@ class Room {
         }
       );
       if (valids.length === 0) {
-          return null;
+          return [null, oneshot];
       }
-      return creep.get_pos().findClosestByPath(valids);
+      return [creep.get_pos().findClosestByPath(valids), oneshot];
     };
   }
 
