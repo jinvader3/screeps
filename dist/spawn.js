@@ -75,15 +75,20 @@ class SpawnManager {
                 // Try to spawn this creep.
                 let free_spawns = _.filter(spawns, spawn => spawn.spawning === null);
                 if (free_spawns.length > 0) {
-                    free_spawns[0].spawnCreep(
-                        body,
-                        `${room.get_name()}:${game.time()}`
+                    //free_spawns[0].spawnCreep(
+                    //    body,
+                    //    `${room.get_name()}:${game.time()}`,
+                    //    reg.memory
+                    //);
+                    console.log('pretend spawn');
+                    console.log(body);
+                    console.log(`${room.get_name()}:${game.time()}`);
+                    console.log(reg.memory);
                 }
                 return;
             }
         }
-        //
-        
-        //
     }
 }
+
+module.exports.SpawnManager = SpawnManager;

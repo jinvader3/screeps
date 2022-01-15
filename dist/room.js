@@ -6,6 +6,7 @@ const { CreepMiner } = require('./creepminer');
 const { CreepFighter } = require('./creepfighter');
 const { CreepClaimer } = require('./creepclaimer');
 const { CreepUpgrader } = require('./creepupgrader');
+const { SpawnManager } = require('./spawn');
 
 class Room {
   constructor (room, ecfg) {
@@ -19,6 +20,7 @@ class Room {
     this.room.memory.res_xfer_intents = this.room.memory.res_xfer_intents || [];
     this.res_xfer_intents = this.room.memory.res_xfer_intents;
     this.ecfg = ecfg;
+    this.spawnman = new SpawnManager();
   }
 
   request_build_creep (ruid, body_unit, unit_min, unit_max, group, group_count, priority, memory) {
@@ -106,13 +108,21 @@ class Room {
     }
   }
 
+  group_count (gname) {
+    if (this.creep_group_counts[gname] === undefined) {
+      return 0;
+    }
+
+    return this.creep_group_counts[gname];
+  }
+
   tick_need_spawn () {
     let creep_group_counts = {
       'worker': 0,
       'hauler': 0,
       'minera': 0,
       'minerb': 0,
-      'fighter': 0,
+      'fighter1': 0,
       'upgrader': 0,
     };
 
@@ -223,62 +233,63 @@ class Room {
       );
     }
 
-    let tclaim = 'E56S31';
+    if (this.room.name === 'E56S31') {
+      let tclaim = 'E57S31';
 
-    /*
-    if (
-      // If the room is not claimed by us and we do not have at least
-      // one claimer built then build one.
-      (!game.rooms()[tclaim] || !game.rooms()[tclaim].controller.my) &&
-      group_count('claimer_' + tclaim) < 1
-      ) {
-      console.log('trying to build claimer');
-      this.spawns[0].spawnCreep(
-        [game.MOVE, game.CLAIM],
-        this.room.name + ':' + game.time(),
-        {
-          memory: {
-            'c': 'claimer',
-            'g': 'claimer_' + tclaim,
-            'tr': tclaim,
-          },
-        }
-      );
-    }
-    */
+      if (
+        // If the room is not claimed by us and we do not have at least
+        // one claimer built then build one.
+        (!game.rooms()[tclaim] || !game.rooms()[tclaim].controller.my) &&
+        group_count('claimer_' + tclaim) < 1
+        ) {
+        console.log('trying to build claimer');
+        this.spawns[0].spawnCreep(
+          [game.MOVE, game.CLAIM],
+          this.room.name + ':' + game.time(),
+          {
+            memory: {
+              'c': 'claimer',
+              'g': 'claimer_' + tclaim,
+              'tr': tclaim,
+            },
+          }
+        );
+      }
 
-    if (game.rooms()[tclaim] && game.rooms()[tclaim].controller.my) {
-      let troom = game.rooms()[tclaim];
+      if (game.rooms()[tclaim] && game.rooms()[tclaim].controller.my) {
+        let troom = game.rooms()[tclaim];
 
-      if (troom.find(FIND_MY_SPAWNS).length == 0) {
-        if (group_count('claimer_' + tclaim) < 4) {
-          console.log('trying to spawn claimer to create spawn');
-          this.spawns[0].spawnCreep(
-            [game.MOVE, game.MOVE, game.work, game.CARRY],
-            this.room.name + ':' + game.time(),
-            {
-              memory: {
-                'c': 'claimer',
-                'g': 'claimer_' + tclaim,
-                'tr': tclaim,
+        if (troom.find(FIND_MY_SPAWNS).length == 0) {
+          if (group_count('claimer_' + tclaim) < 10) {
+            console.log('trying to spawn claimer to create spawn');
+            let res = this.spawns[0].spawnCreep(
+              [game.MOVE, game.MOVE, game.WORK, game.CARRY],
+              this.room.name + ':' + game.time(),
+              {
+                memory: {
+                  'c': 'claimer',
+                  'g': 'claimer_' + tclaim,
+                  'tr': tclaim,
+                }
               }
-            }
-          );
+            );
+            console.log('res', res);
+          }
         }
       }
-    }
 
-    /*
-    if (creep_group_counts.fighter1 < 4 && this.spawns.length > 0) {
-      this.spawns[0].spawnCreep(
-        [game.ATTACK, game.MOVE],
-        this.room.name + ':' + game.time(),
-        {
-          memory: { 'c': 'fighter', 'g': 'fighter1', 'tr': 'E56S32' },
-        }
-      );
+      console.log('----------------');
+      if (group_count('fighter1') < 1 && this.spawns.length > 0) {
+        let res = this.spawns[0].spawnCreep(
+          [game.ATTACK, game.MOVE],
+          this.room.name + ':' + game.time(),
+          {
+            memory: { 'c': 'fighter', 'g': 'fighter1', 'tr': 'E57S31' },
+          }
+        );
+        console.log('spawning fighter res', res);
+      }
     }
-    */
 
     // Need a total work and carry power of 6 by 6 no fewer than 2 creeps.
     let work_power = 0;
@@ -541,7 +552,7 @@ class Room {
       this.dt_pull_storage(),
       this.dt_pull_energy_nearby_sources(),
       this.dt_pull_energy_containers_nearby_sources(),
-      this.dt_pull_sources(),
+      this.dt_pull_sources({ oneshot: true }),
     ];
 
     let dt_hauler_pull = [
@@ -582,7 +593,7 @@ class Room {
       ),
       this.dt_push_to_objects_with_stores(1.0, this.spawns.concat(this.exts)),
       this.dt_push_to_objects_with_stores(1.0, this.towers),
-      this.dt_push_container_adjacent_controller(),
+      this.dt_push_container_adjacent_controller({ oneshot: true }),
       this.dt_push_storage(100000),
     ];
 
@@ -601,8 +612,18 @@ class Room {
           creep.tick(_dt_pull, _dt_push);
         });
       }
-
     }
+
+    task.spawn(100, `spawnman`, ctask => {
+      let roomEnergy = this.room.energyCapacityAvailable;
+      let workers = this.group_count('worker');
+      let haulers = this.group_count('hauler');
+      if (workers === 0 && haulers === 0) {
+        roomEnergy = 300;
+      }
+
+      this.spawnman.process(this, this.room.energy, this.creeps, this.spawns);
+    });
   }
 
   reg_put_intent (creep, trgt, restype, amount) {
@@ -883,7 +904,7 @@ class Room {
         if (res[0]) {
           return {
             trgt: res[0],
-            oneshot: res[1],
+            opts: res[1],
           }
         }
         
@@ -894,7 +915,7 @@ class Room {
       // We have a valid target.
       return {
         trgt: trgt[0],
-        oneshot: trgt[1],
+        opts: trgt[1],
       };
     }
     

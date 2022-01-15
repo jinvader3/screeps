@@ -74,6 +74,7 @@ class CreepClaimer extends Creep {
 
       this.creep.build(csite_spawn)
     } else {
+      console.log('trying to place csite');
       // Randomly place a new construction site near a source.
       let x = source.pos.x;
       let y = source.pos.y;

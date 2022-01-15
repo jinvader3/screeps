@@ -22,7 +22,7 @@ class CreepGeneralWorker extends Creep {
   set_target (trgt) {
     this.creep.memory.t = {
         id: trgt.trgt ? trgt.trgt.id : null,
-        oneshot: trgt.oneshot,
+        opts: trgt.opts,
     };
   }
 
@@ -36,7 +36,7 @@ class CreepGeneralWorker extends Creep {
     if (typeof t !== 'object') {
         return {
             trgt: null,
-            oneshot: false,
+            opts: false,
         };
     }
 
@@ -50,7 +50,7 @@ class CreepGeneralWorker extends Creep {
 
     return {
         trgt: trgt_obj,
-        oneshot: t ? t.oneshot : false,
+        opts: t ? t.opts : false,
     };
   }
 
@@ -206,11 +206,7 @@ class CreepGeneralWorker extends Creep {
       return;
     }
 
-    console.log('here1');
-
     let trgt = this.get_target();
-
-    console.log('here2');
 
     let ecarry = this.creep.store.getUsedCapacity(game.RESOURCE_ENERGY);
     let efree = this.creep.store.getFreeCapacity(game.RESOURCE_ENERGY);
@@ -222,14 +218,14 @@ class CreepGeneralWorker extends Creep {
       if (a || b) {
         trgt = dt_pull();
         this.set_mode('pull');
-        console.log(this.creep.memory.g, 'pull', trgt.trgt, trgt.oneshot);
+        console.log(this.creep.memory.g, 'pull', trgt.trgt, trgt.opts);
         if (!trgt.trgt) {
             return null;
         }
       } else {
         trgt = dt_push();
         this.set_mode('push');
-        console.log(this.creep.memory.g, 'push', trgt.trgt, trgt.oneshot);
+        console.log(this.creep.memory.g, 'push', trgt.trgt, trgt.opts);
         if (!trgt.trgt) {
             return null;
         }
@@ -240,8 +236,6 @@ class CreepGeneralWorker extends Creep {
 
     let res;
 
-    console.log('trgt', trgt.trgt, trgt.oneshot);
-
     if (trgt.trgt) {
       if (this.get_mode() === 'pull') {
         this.room.reg_get_intent(
@@ -250,9 +244,10 @@ class CreepGeneralWorker extends Creep {
           game.RESOURCE_ENERGY,
           this.creep.store.getFreeCapacity(game.RESOURCE_ENERGY)
         );
-        res = this.get(trgt[0], game.RESOURCE_ENERGY);
 
-        let oneshot = trgt.oneshot && (res.oneshot === true);
+        res = this.get(trgt.trgt, game.RESOURCE_ENERGY);
+
+        let oneshot = trgt.opts && trgt.opts.oneshot && (res.oneshot === true);
         
         if (res.done === false || oneshot) {
           this.clear_target();
@@ -265,9 +260,9 @@ class CreepGeneralWorker extends Creep {
           game.RESOURCE_ENERGY,
           this.creep.store.getUsedCapacity(game.RESOURCE_ENERGY)
         );
-        res = this.put(trgt[0], game.RESOURCE_ENERGY);
+        res = this.put(trgt.trgt, game.RESOURCE_ENERGY);
         
-        let oneshot = trgt.oneshot && (res.oneshot === true);
+        let oneshot = trgt.opts && trgt.opts.oneshot && (res.oneshot === true);
         
         if (res.done === false || oneshot) {
           this.clear_target();
