@@ -174,27 +174,6 @@ class Room {
       roomEnergy = 300;
     }
 
-    if (
-      // We must have zero miner type As.
-      creep_group_counts.minera < 1 && 
-      // We must have at least one spawn.
-      this.spawns.length > 0 &&
-      // We must have at least one source.
-      this.sources.length > 0) {
-      this.spawns[0].spawnCreep(
-        [
-          game.WORK, game.WORK, game.WORK, 
-          game.WORK, game.WORK, game.CARRY,
-          game.MOVE
-        ],
-        this.room.name + ':' + game.time(),
-        {
-          memory: { 'c': 'miner', 'g': 'minera', 's': this.sources[0].id },
-        }
-      );
-    }
-
-    /*
     function *miner_bf() {
         let body = [];
         body.push(game.MOVE);
@@ -203,213 +182,97 @@ class Room {
             body.push(game.WORK);
             yield body
         }
+    }    
+
+    function *worker_bf() {
+      let body = [];
+      while (true) {
+        body.push(game.MOVE);
+        body.push(game.MOVE);
+        body.push(game.WORK);
+        body.push(game.CARRY);
+        yield body
+      }
+    }
+
+    function *hauler_bf() {
+      let body = [];
+      while (true) {
+        body.push(game.MOVE);
+        body.push(game.CARRY); 
+        yield body;
+      } 
+    }
+
+    function *upgrader_bf() {
+      let body = [];
+      body.push(game.CARRY);
+      body.push(game.MOVE);
+      while (true) {
+        body.push(game.WORK);
+        yield body;
+      }
+    }
+
+    if (this.spawns.length > 0) {
+      if (this.sources.length > 0) {
+        this.spawnman.reg_build(
+            'miner',
+            'minera',
+            miner_bf,
+            5,
+            0,
+            1,
+            {
+                s: this.sources[0].id,
+            }
+        );
+      }
+    
+      if (this.sources.length > 1) {
+        this.spawnman.reg_build(
+            'miner',
+            'minera',
+            miner_bf,
+            5,
+            1,
+            1,
+            {
+                s: this.sources[0].id,
+            }
+        );      
+      }
     }
 
     this.spawnman.reg_build(
-        'miner',
-        'minera',
-        miner_bf,
-        5,
-        {
-            s: this.sources[0].id,
-        }
+      'gw',
+      'worker',
+      worker_bf,
+      7,
+      -1,
+      2,
+      {}
     );
-    */
 
-    if (
-      creep_group_counts.minerb < 1 && 
-      this.sources.length > 1 && 
-      this.spawns.length > 0) {
-      this.spawns[0].spawnCreep(
-        [
-          game.WORK, game.WORK, game.WORK, 
-          game.WORK, game.WORK, game.CARRY,
-          game.MOVE
-        ],
-        this.room.name + ':' + game.time(),
-        {
-          memory: { 'c': 'miner', 'g': 'minerb', 's': this.sources[1].id },
-        }
-      );
-    }
+    this.spawnman.reg_build(
+      'gw',
+      'hauler',
+      hauler_bf,
+      18,
+      1,
+      1,
+      {}
+    );
 
-    if (this.room.name === 'E56S31') {
-      let tclaim = 'E57S31';
-
-      if (
-        // If the room is not claimed by us and we do not have at least
-        // one claimer built then build one.
-        (!game.rooms()[tclaim] || !game.rooms()[tclaim].controller.my) &&
-        group_count('claimer_' + tclaim) < 1
-        ) {
-        console.log('trying to build claimer');
-        this.spawns[0].spawnCreep(
-          [game.MOVE, game.CLAIM],
-          this.room.name + ':' + game.time(),
-          {
-            memory: {
-              'c': 'claimer',
-              'g': 'claimer_' + tclaim,
-              'tr': tclaim,
-            },
-          }
-        );
-      }
-
-      if (game.rooms()[tclaim] && game.rooms()[tclaim].controller.my) {
-        let troom = game.rooms()[tclaim];
-
-        if (troom.find(FIND_MY_SPAWNS).length == 0) {
-          if (group_count('claimer_' + tclaim) < 10) {
-            console.log('trying to spawn claimer to create spawn');
-            let res = this.spawns[0].spawnCreep(
-              [game.MOVE, game.MOVE, game.WORK, game.CARRY],
-              this.room.name + ':' + game.time(),
-              {
-                memory: {
-                  'c': 'claimer',
-                  'g': 'claimer_' + tclaim,
-                  'tr': tclaim,
-                }
-              }
-            );
-            console.log('res', res);
-          }
-        }
-      }
-
-      console.log('----------------');
-      if (group_count('fighter1') < 1 && this.spawns.length > 0) {
-        let res = this.spawns[0].spawnCreep(
-          [game.ATTACK, game.MOVE],
-          this.room.name + ':' + game.time(),
-          {
-            memory: { 'c': 'fighter', 'g': 'fighter1', 'tr': 'E57S31' },
-          }
-        );
-        console.log('spawning fighter res', res);
-      }
-    }
-
-    // Need a total work and carry power of 6 by 6 no fewer than 2 creeps.
-    let work_power = 0;
-    let carry_power = 0;
-
-    _.each(this.creeps, creep => {
-      //if (creep.creep.memory.c === 'fighter') {
-      //  creep.creep.memory.tr = 'E56S32';
-      //}
-
-      if (creep.creep.memory.c !== 'gw') {
-        return;
-      }
-      _.each(creep.creep.body, part => {
-        if (part.type === game.WORK) {
-          work_power++;
-        }
-        if (part.type === game.CARRY) {
-          carry_power++;
-        }
-      });
-    });
-
-    //let req_work_power = 8;
-    //let req_carry_power = 8;
-
-    //let need_another = 
-    //  creep_group_counts.worker < 2 ||
-    //  work_power < req_work_power || 
-    //  carry_power < req_carry_power;
-    let need_another = true;
-
-    if (creep_group_counts.worker >= 2) {
-      need_another = false;
-    }
-
-    //console.log(`WORK-PWR[${work_power}] CARRY-PWR[${carry_power}]`);
-    //console.log(`NEED_ANOTHER_WORKER=${need_another}`);
-
-    if (need_another) {
-      let ea = roomEnergy;
-      // WORK, CARRY, MOVE, MOVE is one unit
-      let unit_cost = 100 + 50 + 50 + 50;
-      let unit_count = Math.floor(ea / unit_cost);
-      let body_spec = [];
-
-      // Lock workers at level 7.
-      unit_count = Math.max(Math.min(unit_count + opto.worker_level_adj, 7), 1);
-
-      for (let x = 0; x < unit_count; ++x) {
-        body_spec.push(game.WORK);
-        body_spec.push(game.CARRY);
-        body_spec.push(game.MOVE);
-        body_spec.push(game.MOVE);
-      }
-
-      this.spawns[0].spawnCreep(
-        body_spec,
-        this.room.name + ':' + game.time(),
-        {
-          memory: { 'c': 'gw', 'g': 'worker' },
-        }
-      );
-    }
-
-    if (creep_group_counts.hauler === 0) {
-      let ea = roomEnergy;
-      // WORK, CARRY, MOVE, MOVE is one unit
-      let unit_cost = 50 + 50;
-      let unit_count = Math.floor(ea / unit_cost);
-      let body_spec = [];
-
-      // Lock hauler at level 18.
-      unit_count = Math.max(Math.min(unit_count + opto.hauler_level_adj, 18), 1);
-
-      for (let x = 0; x < unit_count; ++x) {
-        body_spec.push(game.CARRY);
-        body_spec.push(game.MOVE);
-      }
-
-      this.spawns[0].spawnCreep(
-        body_spec,
-        this.room.name + ':' + game.time(),
-        {
-          memory: { 'c': 'gw', 'g': 'hauler' },
-        }
-      );        
-    }
-
-    if (creep_group_counts.upgrader === 0) {
-      let ea = this.room.energyCapacityAvailable;
-      let body_spec = [];
-
-      body_spec.push(game.CARRY);
-      body_spec.push(game.MOVE);        
-
-      let work_part_needed;
-
-      if (this.sources.length == 1) {
-        work_part_needed = 2;
-      } else {
-        work_part_needed = 4;
-      }
-
-      if (ea - (100 + work_part_needed * 100) >= 100) {
-        body_spec.push(game.WORK);
-      }
-
-      for (let x = 0; x < work_part_needed; ++x) {
-        body_spec.push(game.WORK);
-      }
-
-      this.spawns[0].spawnCreep(
-        body_spec,
-        this.room.name + ':' + game.time(),
-        {
-          memory: { 'c': 'upgrader', 'g': 'upgrader' },
-        }
-      );        
-    }
+    this.spawnman.reg_build(
+      'upgrader',
+      'upgrader',
+      upgrader_bf,
+      this.sources.length > 1 ? 5 : 3,
+      2,
+      1,
+      {}
+    );
   }
 
   container_evaluate_state (cont, on_amount, off_amount) {
@@ -453,7 +316,6 @@ class Room {
 
     this.exts = [];
     this.towers = [];
-    this.spawns = [];
     this.structs = [];
     this.roads = [];
     this.containers = [];
@@ -615,14 +477,15 @@ class Room {
     }
 
     task.spawn(100, `spawnman`, ctask => {
-      let roomEnergy = this.room.energyCapacityAvailable;
+      let room_energy = this.room.energyCapacityAvailable;
       let workers = this.group_count('worker');
       let haulers = this.group_count('hauler');
+
       if (workers === 0 && haulers === 0) {
-        roomEnergy = 300;
+        room_energy = 300;
       }
 
-      this.spawnman.process(this, this.room.energy, this.creeps, this.spawns);
+      this.spawnman.process(this, room_energy, this.creeps, this.spawns);
     });
   }
 
@@ -901,10 +764,10 @@ class Room {
       if (trgt[0].length !== undefined) {
         let res = this.dt_run(trgt[0], creep);
         // If it gave us a valid target then return it.
-        if (res[0]) {
+        if (res.trgt) {
           return {
-            trgt: res[0],
-            opts: res[1],
+            trgt: res.trgt,
+            opts: res.opts,
           }
         }
         
@@ -912,6 +775,7 @@ class Room {
         continue;
       }
 
+      console.log('returning');
       // We have a valid target.
       return {
         trgt: trgt[0],
@@ -978,7 +842,10 @@ class Room {
       if (valids.length === 0) {
           return [null, oneshot];
       }
-      return [creep.get_pos().findClosestByPath(valids), oneshot];
+      console.log('valids', valids);
+      let nearest = creep.get_pos().findClosestByPath(valids);
+      console.log('nearest', nearest);
+      return [nearest, oneshot];
     };
   }
 

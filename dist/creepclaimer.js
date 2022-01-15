@@ -23,10 +23,7 @@ class CreepClaimer extends Creep {
     
     let croom = game.rooms()[this.creep.memory.tr];
 
-    console.log('claimer tick', croom, this.creep.memory.tr);
     let can_claim = _.some(this.creep.body, part => part.type === game.CLAIM);
-
-    console.log('I am able to claim?', can_claim);
 
     if (can_claim) {
       return this.tick_controller_worker(croom);
@@ -74,7 +71,6 @@ class CreepClaimer extends Creep {
 
       this.creep.build(csite_spawn)
     } else {
-      console.log('trying to place csite');
       // Randomly place a new construction site near a source.
       let x = source.pos.x;
       let y = source.pos.y;

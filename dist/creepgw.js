@@ -46,8 +46,6 @@ class CreepGeneralWorker extends Creep {
         trgt_obj = game.getObjectById()(t.id);
     }
 
-    console.log('get_target', t);
-
     return {
         trgt: trgt_obj,
         opts: t ? t.opts : false,

@@ -14,8 +14,11 @@ class Reg {
     }
 
     get_max_level (max_energy) {
-        let best = null;
+        if (max_energy === undefined || max_energy === null) {
+          throw new Error('max_energy *must* not be undefined or null');
+        }
 
+        let best = null;
         for (let build of this.build_gf()) {
             let cost = _.sumBy(build, part => {
                 switch (part) {
@@ -50,7 +53,7 @@ class SpawnManager {
     }
 
     reg_build (clazz, group, build_gf, max_level, priority, count, memory) {
-        this.regs.append(new Reg(
+        this.regs.push(new Reg(
             clazz, group, build_gf, max_level, priority, count, memory
         ));
     }
@@ -71,19 +74,31 @@ class SpawnManager {
             rcreeps.sort((a, b) => a.get_ttl() < b.get_ttl() ? -1 : 1);
             let frcreep = rcreeps[0];
 
-            if (frcreep.get_ttl() <= time_to_spawn + 10) {
+            let cond_a = frcreep === undefined || frcreep.get_ttl() <= time_to_spawn + 10;
+            let cond_b = rcreeps.length < reg.count;
+
+            if (cond_a || cond_b) {
                 // Try to spawn this creep.
-                let free_spawns = _.filter(spawns, spawn => spawn.spawning === null);
+                let free_spawns = _.filter(spawns, spawn => !spawn.spawning);
                 if (free_spawns.length > 0) {
-                    //free_spawns[0].spawnCreep(
-                    //    body,
-                    //    `${room.get_name()}:${game.time()}`,
-                    //    reg.memory
-                    //);
-                    console.log('pretend spawn');
-                    console.log(body);
-                    console.log(`${room.get_name()}:${game.time()}`);
-                    console.log(reg.memory);
+                    let n_memory = {};
+      
+                    for (let k in reg.memory) {
+                      n_memory[k] = reg.memory[k];
+                    }
+      
+                    n_memory['c'] = reg.clazz;
+                    n_memory['g'] = reg.group;
+
+                    free_spawns[0].spawnCreep(
+                        body,
+                        `${room.get_name()}:${game.time()}`,
+                        { memory: n_memory }
+                    );
+                    //console.log('pretend spawn');
+                    //console.log(body);
+                    //console.log(`${room.get_name()}:${game.time()}`);
+                    //console.log(n_memory);
                 }
                 return;
             }
