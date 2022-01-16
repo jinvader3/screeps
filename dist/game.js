@@ -63,6 +63,7 @@ if (global['Game'] !== undefined) {
     ORDER_SELL: ORDER_SELL,
     ORDER_BUY: ORDER_BUY,
     market: () => Game.market,
+    RoomVisual: RoomVisual,
   };
 } else {
   // The actual constants are wrong which is good because code should

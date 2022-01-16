@@ -3,21 +3,23 @@ _ = game._;
 
 
 class Reg {
-    constructor (clazz, group, build_gf, max_level, priority, count, memory) {
+    constructor (clazz, group, build_gf, max_level, priority, count, memory, needed_level) {
         this.clazz = clazz;
         this.group = group;
         this.build_gf = build_gf;
-        this.max_level = max_level;
-        this.priority = priority;
-        this.count = count;
-        this.memory = memory;
+        this.max_level = max_level === undefined ? 999 : max_level;
+        this.priority = priority === undefined ? 0 : priority;
+        this.count = count === undefined ? 0 : count;
+        this.memory = memory === undefined ? {} : memory;
+        this.needed_level = needed_level === undefined ? 0 : needed_level;
     }
 
-    get_max_level (max_energy) {
+    get_max_level (max_energy, max_level) {
         if (max_energy === undefined || max_energy === null) {
           throw new Error('max_energy *must* not be undefined or null');
         }
 
+        let cnt = 1;
         let best = null;
         for (let build of this.build_gf()) {
             let cost = _.sumBy(build, part => {
@@ -37,13 +39,25 @@ class Reg {
             });
 
             if (cost > max_energy) {
-                return best;
+                return {
+                  body: best,
+                  level: cnt,
+                };
             }
 
             best = _.map(build, part => part);
+            if (++cnt >= max_level) {
+              return {
+                body: best,
+                level: cnt,
+              };
+            }
         }
 
-        return best;
+        return {
+          body: best,
+          level: cnt,
+        };
     }
 }
 
@@ -52,9 +66,9 @@ class SpawnManager {
         this.regs = [];
     }
 
-    reg_build (clazz, group, build_gf, max_level, priority, count, memory) {
+    reg_build (clazz, group, build_gf, max_level, priority, count, memory, needed_level) {
         this.regs.push(new Reg(
-            clazz, group, build_gf, max_level, priority, count, memory
+            clazz, group, build_gf, max_level, priority, count, memory, needed_level
         ));
     }
 
@@ -67,17 +81,27 @@ class SpawnManager {
                 let cm = creep.get_memory();
                 return cm.g === reg.group && cm.c === reg.clazz;
             });
+
+
             // Determine the maximum level unit we can build.
-            let body = reg.get_max_level(max_energy)
+            let res = reg.get_max_level(max_energy, reg.max_level)
+            let body = res.body;
+            let level = res.level;
             let time_to_spawn = body.length * 3;
+
+            let count_mul = Math.ceil(reg.needed_level / level);
+            let count = reg.count * count_mul;
 
             rcreeps.sort((a, b) => a.get_ttl() < b.get_ttl() ? -1 : 1);
             let frcreep = rcreeps[0];
 
             let cond_a = frcreep === undefined || frcreep.get_ttl() <= time_to_spawn + 10;
-            let cond_b = rcreeps.length < reg.count;
+            let cond_b = rcreeps.length < count;
+            let cond_c = rcreeps.length === count;
 
-            if (cond_a || cond_b) {
+            //console.log('reg.group', reg.group, cond_a, cond_b, cond_c);
+
+            if ((cond_a && cond_c) || cond_b) {
                 // Try to spawn this creep.
                 let free_spawns = _.filter(spawns, spawn => !spawn.spawning);
                 if (free_spawns.length > 0) {

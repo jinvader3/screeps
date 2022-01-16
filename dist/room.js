@@ -7,6 +7,9 @@ const { CreepFighter } = require('./creepfighter');
 const { CreepClaimer } = require('./creepclaimer');
 const { CreepUpgrader } = require('./creepupgrader');
 const { SpawnManager } = require('./spawn');
+const { CreepRemoteMiner } = require('./creeprminer');
+const { CreepRemoteHauler } = require('./creeprhauler');
+const { Stats } = require('./stats');
 
 class Room {
   constructor (room, ecfg) {
@@ -21,6 +24,11 @@ class Room {
     this.res_xfer_intents = this.room.memory.res_xfer_intents;
     this.ecfg = ecfg;
     this.spawnman = new SpawnManager();
+    this.stats = new Stats();
+  }
+
+  record_stat (key, value) {
+    this.stats.record_stat(`${this.get_name()}.${key}`, value);
   }
 
   request_build_creep (ruid, body_unit, unit_min, unit_max, group, group_count, priority, memory) {
@@ -68,27 +76,104 @@ class Room {
   think_build_creep () {
   }
 
-  add_creep (creep) {
-    creep._upgradeController = creep.upgradeController;
-    creep.upgradeController = trgt => {
-      let res = creep._upgradeController(trgt);
+  hook_creep_method (creep, method, stat_name) {
+    creep[`_${method}`] = creep[method];
+
+    let work_count = _.sumBy(creep.body, part => part.type === game.WORK);
     
-      if (res === game.OK) {
-        let opto = this.room.memory.opto;
+    switch (method) {
+      case 'upgradeController': 
+        creep.upgradeController = trgt => {
+          let res = creep._upgradeController(trgt);
+          if (res === game.OK) {
+            let value = creep.memory[stat_name] === undefined ? 0 : creep.memory[stat_name];
+            creep.memory[stat_name] += work_count;
+          }
+          return res;
+        };
+        break;
+      case 'repair': 
+        creep.repair = trgt => {
+          let res = creep._repair(trgt);
+          if (res === game.OK) {
+            let value = creep.memory[stat_name] === undefined ? 0 : creep.memory[stat_name];
+            creep.memory[stat_name] += work_count;
+          }
+          return res;
+        };
+        break;    
+      case 'withdraw': 
+        creep.withdraw = (trgt, rtype, amt) => {
+          let res = creep._withdraw(trgt, rtype, amt);
+          if (res === game.OK) {
+            let value = creep.memory[stat_name] === undefined ? 0 : creep.memory[stat_name];
+            creep.memory[stat_name] += amt;
+          }
+          return res;
+        };
+        break; 
+      case 'transfer': 
+        creep.transfer = (trgt, rtype, amt) => {
+          let res = creep._transfer(trgt, rtype, amt);
+          if (res === game.OK) {
+            let value = creep.memory[stat_name] === undefined ? 0 : creep.memory[stat_name];
+            creep.memory[stat_name] += amt;
+          }
+          return res;
+        };
+        break;
+      case 'harvest': 
+        creep.harvest = trgt => {
+          let res = creep._harvest(trgt);
+          if (res === game.OK) {
+            let value = creep.memory[stat_name] === undefined ? 0 : creep.memory[stat_name];
+            creep.memory[stat_name] += work_count;
+          }
+          return res;
+        };
+        break;
+      default:
+        throw new Error('The method specified is unknown.'); 
+    }
+  }
 
-        let work = _.sumBy(
-          creep.body, part => part.type === game.WORK ? 1 : 0
-        );
+  add_creep_death (creep_memory) {
+    const m = creep_memory;
+    const score = (m.st_up || 0) + (m.st_rp || 0) + (m.st_xf || 0);
+    const rm = this.room.memory; 
+    rm.scores = rm.scores ? rm.scores : [];
 
-        opto.energy_spent_control += work;
-      }
+    this.record_stat('creep.death', {
+      c: m.c,
+      g: m.g,
+      score: score,
+    }); 
+  }
 
-      return res;
-    };
+  add_creep (creep) {
+    this.hook_creep_method(creep, 'harvest', 'st_hr');
+    this.hook_creep_method(creep, 'upgradeController', 'st_up');
+    this.hook_creep_method(creep, 'repair', 'st_rp');
+    this.hook_creep_method(creep, 'withdraw', 'st_wt');
+    this.hook_creep_method(creep, 'transfer', 'st_xf');
+
+    if (game.RoomVisual) {
+      const cm = creep.memory;
+      const score = (cm.st_hr || 0) + (cm.st_up || 0) + 
+                    (cm.st_rp || 0) + (cm.st_xf || 0);
+      let rv = new game.RoomVisual(creep.pos.roomName);
+      rv.text(`${score}`, creep.pos.x, creep.pos.y);
+    }
 
     switch (creep.memory.c) {
       case 'gw': 
         this.creeps.push(new CreepGeneralWorker(this, creep));
+        break;
+      case 'rminer':
+        this.creeps.push(new CreepRemoteMiner(this, creep));
+        break;
+      case 'rhauler':
+        this.creeps.push(new CreepRemoteHauler(this, creep));
         break;
       case 'miner': 
         this.creeps.push(new CreepMiner(this, creep));
@@ -173,6 +258,56 @@ class Room {
       console.log(`emergency room energy levels set for room ${this.room.name}`);
       roomEnergy = 300;
     }
+    
+    /*
+    if (this.room.name === 'E56S31') {
+      let tclaim = 'E57S31';
+
+      if (
+        // If the room is not claimed by us and we do not have at least
+        // one claimer built then build one.
+        (!game.rooms()[tclaim] || !game.rooms()[tclaim].controller.my) &&
+        group_count('claimer_' + tclaim) < 1
+        ) {
+        console.log('trying to build claimer');
+        this.spawns[0].spawnCreep(
+          [game.MOVE, game.CLAIM],
+          this.room.name + ':' + game.time(),
+          {
+            memory: {
+              'c': 'claimer',
+              'g': 'claimer_' + tclaim,
+              'tr': tclaim,
+            },
+          }
+        );
+      }
+
+      if (game.rooms()[tclaim] && game.rooms()[tclaim].controller.my) {
+        let troom = game.rooms()[tclaim];
+
+        if (troom.find(FIND_MY_SPAWNS).length == 0) {
+          if (group_count('claimer_' + tclaim) < 6) {
+            console.log('trying to spawn claimer to create spawn');
+            let res = this.spawns[0].spawnCreep(
+              [game.MOVE, game.MOVE, game.WORK, game.CARRY],
+              this.room.name + ':' + game.time(),
+              {
+                memory: {
+                  'c': 'claimer',
+                  'g': 'claimer_' + tclaim,
+                  'tr': tclaim,
+                }
+              }
+            );
+            console.log('res', res);
+          }
+        }
+      }
+
+      //console.log('----------------');
+   }
+    */
 
     function *miner_bf() {
         let body = [];
@@ -183,6 +318,29 @@ class Room {
             yield body
         }
     }    
+
+    function *remote_miner_bf() {
+        let body = [];
+        body.push(game.MOVE);
+        body.push(game.CARRY);
+        while (true) {
+            body.push(game.MOVE);
+            body.push(game.WORK);
+            yield body
+        }
+    }    
+
+    function *remote_hauler_bf() {
+        let body = [];
+        body.push(game.MOVE);
+        body.push(game.WORK);
+    
+        while (true) {
+            body.push(game.MOVE);
+            body.push(game.CARRY);
+            yield body
+        }
+    }
 
     function *worker_bf() {
       let body = [];
@@ -214,34 +372,84 @@ class Room {
       }
     }
 
-    if (this.spawns.length > 0) {
-      if (this.sources.length > 0) {
+    if (this.ecfg.remote_sources) {
+      _.each(this.ecfg.remote_sources, rsrc_op => {
         this.spawnman.reg_build(
-            'miner',
-            'minera',
-            miner_bf,
-            5,
-            0,
-            1,
-            {
-                s: this.sources[0].id,
-            }
+          'rminer',
+          `miner_remote:${rsrc_op.uid}`,
+          remote_miner_bf,
+          rsrc_op.mining_level,
+          5,
+          1,
+          {
+            s: rsrc_op.sources,
+          }
+        );        
+        this.spawnman.reg_build(
+          'rhauler',
+          `hauler_remote:${rsrc_op.uid}`,
+          remote_hauler_bf,
+          rsrc_op.hauling_power,
+          6,
+          1,
+          {
+            s: rsrc_op.sources,
+          },
+          rsrc_op.hauling_power
+        );        
+      });
+    }
+
+    if (this.ecfg.warfare_small) {
+      function *fighter_bf() {
+        let body = [];
+        while (true) {
+          body.push(game.MOVE);
+          body.push(game.ATTACK); 
+          yield body;
+        } 
+      }
+      _.each(this.ecfg.warfare_small, op => {
+        this.spawnman.reg_build(
+          'fighter',
+          `warfare_small:${op.uid}`,
+          fighter_bf,
+          op.max_level,
+          5,
+          op.count,
+          {
+            tr: op.room,
+          }
         );
-      }
-    
-      if (this.sources.length > 1) {
-        this.spawnman.reg_build(
-            'miner',
-            'minera',
-            miner_bf,
-            5,
-            1,
-            1,
-            {
-                s: this.sources[0].id,
-            }
-        );      
-      }
+      });
+    }
+
+    if (this.sources.length > 0) {
+      this.spawnman.reg_build(
+          'miner',
+          'minera',
+          miner_bf,
+          5,
+          0,
+          1,
+          {
+              s: this.sources[0].id,
+          }
+      );
+    }
+  
+    if (this.sources.length > 1) {
+      this.spawnman.reg_build(
+          'miner',
+          'minerb',
+          miner_bf,
+          5,
+          1,
+          1,
+          {
+              s: this.sources[1].id,
+          }
+      );      
     }
 
     this.spawnman.reg_build(
@@ -268,7 +476,7 @@ class Room {
       'upgrader',
       'upgrader',
       upgrader_bf,
-      this.sources.length > 1 ? 5 : 3,
+      this.sources.length > 1 ? 10 : 5,
       2,
       1,
       {}
@@ -373,6 +581,9 @@ class Room {
     _.each(this.sources, source => sources_and_denergy.push(source));
     _.each(denergy, i => sources_and_denergy.push(i));
 
+
+    this.record_stat('dropped.energy', _.sumBy(denergy, e => e.amount));
+
     // Quick and dirty tower code.
     this.hcreeps = this.room.find(game.FIND_HOSTILE_CREEPS);
     if (this.hcreeps.length > 0) {
@@ -414,16 +625,23 @@ class Room {
       this.dt_pull_storage(),
       this.dt_pull_energy_nearby_sources(),
       this.dt_pull_energy_containers_nearby_sources(),
-      this.dt_pull_sources({ oneshot: true }),
+      this.dt_pull_sources(),
     ];
 
     let dt_hauler_pull = [
       this.dt_cond(
-        () => this.creep_group_counts.worker > 0,
+        () => this.group_count('worker') > 0,
         [
           // If we have workers.
           this.dt_pull_from_objects_with_stores(
-            0.0, this.links_adj_storage,
+            0.0, this.links_adj_storage, {},
+            lst => { 
+              lst.sort((a, b) => {
+                return a.store.getUsedCapacity(game.RESOURCE_ENERGY) >
+                       b.store.getUsedCapacity(game.RESOURCE_ENERGY) ? -1 : 1;
+              })
+              return lst[0];
+            }
           ),
           this.dt_pull_from_objects_with_stores(
             0.0, this.active_containers_near_sources
@@ -455,7 +673,7 @@ class Room {
       ),
       this.dt_push_to_objects_with_stores(1.0, this.spawns.concat(this.exts)),
       this.dt_push_to_objects_with_stores(1.0, this.towers),
-      this.dt_push_container_adjacent_controller({ oneshot: true }),
+      this.dt_push_to_objects_with_stores(1.0, this.active_containers_adj_controller),
       this.dt_push_storage(100000),
     ];
 
@@ -775,7 +993,6 @@ class Room {
         continue;
       }
 
-      console.log('returning');
       // We have a valid target.
       return {
         trgt: trgt[0],
@@ -824,7 +1041,7 @@ class Room {
     };
   }
 
-  dt_pull_from_objects_with_stores (threshold, objlist, oneshot) {
+  dt_pull_from_objects_with_stores (threshold, objlist, oneshot, efunc) {
     return (creep) => {
       let valids = _.filter(
         objlist, s => {
@@ -842,8 +1059,14 @@ class Room {
       if (valids.length === 0) {
           return [null, oneshot];
       }
-      console.log('valids', valids);
-      let nearest = creep.get_pos().findClosestByPath(valids);
+      let nearest;
+      
+      if (efunc) {
+        nearest = efunc(valids);
+      } else {
+        nearest = creep.get_pos().findClosestByPath(valids);
+      }
+
       console.log('nearest', nearest);
       return [nearest, oneshot];
     };

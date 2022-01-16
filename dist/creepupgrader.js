@@ -33,6 +33,10 @@ class CreepUpgrader extends Creep {
           amt
         );
         this.creep.upgradeController(c);
+        
+        if (game.time() % 100 === 0) {
+          this.creep.signController(c, 'Redbeard is real. Beware.');
+        }
       }
     } else {
       if (this.creep.pos.inRangeTo(c, 1.8)) {

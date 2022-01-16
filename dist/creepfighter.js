@@ -21,11 +21,13 @@ class CreepFighter extends Creep {
       return;
     }
 
+    let nearest;
+
     let hcreeps = game.rooms()[this.creep.pos.roomName].find(
       game.FIND_HOSTILE_CREEPS
     );
 
-    let nearest = this.creep.pos.findClosestByPath(hcreeps);
+    nearest = this.creep.pos.findClosestByPath(hcreeps);
 
     if (nearest) {
       if (this.creep.attack(nearest) === game.ERR_NOT_IN_RANGE) {

@@ -44,6 +44,16 @@ class CreepMiner extends Creep {
     let source_id = this.creep.memory.s;
     let source = game.getObjectById()(source_id);
 
+    console.log('source', this.creep.pos, source);
+    
+    if (!source) {
+      if (this.creep.memory.sr) {
+        let pos = new RoomPosition(0, 0, this.creep.memory.sr);
+        this.creep.moveTo(pos);
+      }
+      return;
+    }
+
     // Look for chest around the source.
     let cont = this.find_container_near_source(source);
 

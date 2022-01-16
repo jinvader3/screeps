@@ -4,6 +4,7 @@
 */
 const game = require('./game');
 const _ = game._;
+const { Stats } = require('./stats');
 
 class Task {
   constructor (parent, priority, name, f, payer, te) {
@@ -84,7 +85,7 @@ class Task {
     return parts.join('/');
   }
 
-  run () {
+  run (stats) {
     let credit = this.get_credit();
     if (credit <= 0) {
       //console.log(
@@ -101,6 +102,7 @@ class Task {
       let et = game.cpu().getUsed();
       let dt = et - st;
       this.charge(dt);
+      stats.record_stat('charge.' + this.get_full_name(), dt);
       return null;
     } catch (err) {
       console.log(`[error] ${err}`);
@@ -111,9 +113,10 @@ class Task {
 }
 
 class TaskEngine {
-  constructor () {
+  constructor (stats_prefix) {
     this.pend_tasks = [];
     this.root_task = new Task(null, 0, 'root', () => null, null, this);
+    this.stats = new Stats(stats_prefix);
   }
 
   queue_task (task) {
@@ -138,7 +141,7 @@ class TaskEngine {
         return a.priority > b.priority ? 1 : -1;
       });
       let cur_task = this.pend_tasks.shift();
-      let err = cur_task.run();
+      let err = cur_task.run(this.stats);
       if (err) {
         errors.push([cur_task.get_full_name(), err])
       }

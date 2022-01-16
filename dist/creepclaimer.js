@@ -36,6 +36,9 @@ class CreepClaimer extends Creep {
     // This creep is only intended to establish an initial foothold
     // in the room at this time. It only builds a single spawn.
     if (croom.find(game.FIND_MY_SPAWNS).length > 0) {
+      this.creep.memory.name = `${this.creep.memory.tr}:${game.time()}`;
+      this.creep.memory.c = 'gw';
+      this.creep.memroy.g = 'worker';
       return;
     }
 
