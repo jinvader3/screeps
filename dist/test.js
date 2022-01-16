@@ -211,6 +211,7 @@ test.serial('bootup', t => {
   });
 
   let res = main.loop();
+  console.log(res);
   t.truthy(res.length === 0);
   //res = main.loop();
   //t.truthy(res.length === 0);

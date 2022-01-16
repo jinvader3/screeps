@@ -55,6 +55,8 @@ if (global['Game'] !== undefined) {
     STRUCTURE_TOWER: STRUCTURE_TOWER,
     STRUCTURE_CONTAINER: STRUCTURE_CONTAINER,
     STRUCTURE_LINK: STRUCTURE_LINK,
+    STRUCTURE_LAB: STRUCTURE_LAB,
+    STRUCTURE_EXTRACTOR: STRUCTURE_EXTRACTOR,
     REACTIONS: REACTIONS,
     LOOK_STRUCTURES: LOOK_STRUCTURES,
     LOOK_ENERGY: LOOK_ENERGY,
@@ -121,6 +123,8 @@ if (global['Game'] !== undefined) {
     STRUCTURE_TOWER: 'structure_tower',
     STRUCTURE_CONTAINER: 'structure_container',
     STRUCTURE_LINK: 'structure_link',
+    STRUCTURE_LAB: 'structure_lab',
+    STRUCTURE_EXTRACTOR: 'structure_extractor',
     LOOK_STRUCTURES: 'look_structures',
     LOOK_ENERGY: 'look_energy',
     REACTIONS: {

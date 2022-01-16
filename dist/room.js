@@ -10,6 +10,7 @@ const { SpawnManager } = require('./spawn');
 const { CreepRemoteMiner } = require('./creeprminer');
 const { CreepRemoteHauler } = require('./creeprhauler');
 const { Stats } = require('./stats');
+const { CreepLabRat, LabManager } = require('./labrats');
 
 class Room {
   constructor (room, ecfg) {
@@ -71,6 +72,10 @@ class Room {
 
   get_storage () {
     return this.room.storage;
+  }
+
+  get_spawnman () {
+    return this.spawnman;
   }
 
   think_build_creep () {
@@ -186,6 +191,9 @@ class Room {
         break;
       case 'upgrader':
         this.creeps.push(new CreepUpgrader(this, creep));
+        break;
+      case 'labrat':
+        this.creeps.push(new CreepLabRat(this, creep));
         break;
       default: 
         this.creeps.push(new CreepDummy(this, creep));
@@ -424,6 +432,16 @@ class Room {
       });
     }
 
+    function *miner_bf() {
+        let body = [];
+        body.push(game.MOVE);
+        body.push(game.CARRY);
+        while (true) {
+            body.push(game.WORK);
+            yield body
+        }
+    }    
+
     if (this.sources.length > 0) {
       this.spawnman.reg_build(
           'miner',
@@ -540,6 +558,8 @@ class Room {
     this.active_containers_adj_controller = [];
     this.links = [];
     this.links_adj_storage = [];
+    this.labs = [];
+    this.extractors = [];
 
     _.each(this.room.find(game.FIND_STRUCTURES), s => {
       this.structs.push(s);
@@ -548,6 +568,8 @@ class Room {
         case game.STRUCTURE_TOWER: this.towers.push(s); return;
         case game.STRUCTURE_SPAWN: this.spawns.push(s); return;
         case game.STRUCTURE_ROAD: this.roads.push(s); return;
+        case game.STRUCTURE_LAB: this.labs.push(s); return;
+        case game.StRUCTURE_EXTRACTOR: this.extractors.push(s); return;
         case game.STRUCTURE_LINK:
           this.links.push(s);
           let rstor = this.room.storage;
@@ -683,8 +705,16 @@ class Room {
       this.dt_push_storage(100000),
     ];
 
-     for (let ndx in this.creeps) {
+    let lab_creeps = [];
+
+    for (let ndx in this.creeps) {
       let creep = this.creeps[ndx];
+
+      if (creep instanceof CreepLabRat) {
+        lab_creeps.push(creep);
+        continue;
+      }
+
       if (creep.get_group() === 'hauler') {
         let _dt_pull = () => this.dt_run(dt_hauler_pull, creep);
         let _dt_push = () => this.dt_run(dt_push_hauler, creep);
@@ -699,6 +729,13 @@ class Room {
         });
       }
     }
+
+    let lab_task = task.spawn_isolated(40, `labman`, ctask => {
+      let labman = new LabManager(this);
+      labman.tick(ctask, lab_creeps, this.labs, this.extractors);
+    });
+
+    task.transfer(lab_task, 1, 5);
 
     task.spawn(100, `spawnman`, ctask => {
       let room_energy = this.room.energyCapacityAvailable;
