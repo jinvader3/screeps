@@ -36,19 +36,22 @@ class LabManager {
     // (1/4) schedule creep creation
     if (extractors.length > 0) {
       this.sm.reg_build(
-        'labrat_extractor',
+        'miner',
         'labrat_extractor',
         labrat_extractor_bf,
         4,
         8,
         1,
-        {}
+        {
+          // Treat an extractor just like a source.
+          s: extractors[0].id,
+        }
       );
     }
 
     if (labs.length > 0) {
       this.sm.reg_build(
-        'labrat_mover',
+        'labrat',
         'labrat_mover',
         labrat_mover_bf,
         4,

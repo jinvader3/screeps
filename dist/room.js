@@ -470,13 +470,30 @@ class Room {
       );      
     }
 
+    const clevel = this.room.controller ? this.room.controller.level : 0;
+    let worker_count;
+
+    const clevel_worker_count = {
+      0: 0,
+      1: 6,
+      2: 5,
+      3: 3,
+      4: 2,
+      5: 1,
+      6: 1,
+      7: 1,
+      8: 1,
+    };
+
+    worker_count = clevel_worker_count[clevel];
+    
     this.spawnman.reg_build(
       'gw',
       'worker',
       worker_bf,
       7,
       -1,
-      2,
+      worker_count,
       {}
     );
 
@@ -737,6 +754,7 @@ class Room {
 
     task.transfer(lab_task, 1, 5);
 
+    console.log('scheduled spawnman task', this.get_name());
     task.spawn(100, `spawnman`, ctask => {
       let room_energy = this.room.energyCapacityAvailable;
       let workers = this.group_count('worker');
@@ -746,6 +764,7 @@ class Room {
         room_energy = 300;
       }
 
+      console.log('<spawnman>', this.get_name());
       this.spawnman.process(this, room_energy, this.creeps, this.spawns);
     });
   }

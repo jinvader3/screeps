@@ -107,7 +107,14 @@ class SpawnManager {
             let level = res.level;
             let time_to_spawn = body.length * 3;
 
-            let count_mul = Math.ceil(reg.needed_level / level);
+            let count_mul; 
+
+            if (reg.needed_level !== undefined) {
+              count_mul = Math.max(Math.ceil(reg.needed_level / level), 1);
+            } else {
+              count_mul = 1;
+            }
+
             let count = reg.count * count_mul;
 
             rcreeps.sort((a, b) => a.get_ttl() < b.get_ttl() ? -1 : 1);
@@ -117,7 +124,11 @@ class SpawnManager {
             let cond_b = rcreeps.length < count;
             let cond_c = rcreeps.length === count;
 
-            //console.log('reg.group', reg.group, cond_a, cond_b, cond_c);
+            console.log('count_mul', count_mul, reg.count);
+            console.log(
+              `reg.group[count=${count}]`, 
+              room.get_name(), reg.group, cond_a, cond_b, cond_c
+            );
 
             if ((cond_a && cond_c) || cond_b) {
                 // Try to spawn this creep.
