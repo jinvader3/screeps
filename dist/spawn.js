@@ -1,16 +1,34 @@
 const game = require('./game');
 _ = game._;
 
-
+/// This is a spawn manager registration entry. It represents the caller's desire for the spawn to potentially
+/// build a creep. The key here is that it is not an actual request but rather a registration to the spawn that
+/// this type of creep needs to be built *IF* it does not already exist. The spawn manager also uses this to track
+/// existing creeps and replace them _before_ they expire.
 class Reg {
     constructor (clazz, group, build_gf, max_level, priority, count, memory, needed_level) {
+        // The creep's memory object field `c` is set to this. (USER DEFINED but may be used for matching)
         this.clazz = clazz;
+        // The creep's memory object field `g` is set to this. (USER DEFINED but may be used for matching)
         this.group = group;
+        // A generator function that on each iteration yields a body with an additional part added creating
+        // the idea of creep levels. The higher the level the bigger/stronger the creep is but obviously
+        // the more it costs. Creeps are always attempted to be built at the `max_level`.
         this.build_gf = build_gf;
+        // The maximum number of iterations or the highest possible level.
         this.max_level = max_level === undefined ? 999 : max_level;
+        // A lower number beats higher numbers. 
         this.priority = priority === undefined ? 0 : priority;
+        // This is the number of creeps that should be kept spawned.
         this.count = count === undefined ? 0 : count;
+        // This is the memory to provide each spawn creep with. The `c` and `g` fields are merged with
+        // memory to create the final memory object. The `c` and `g` fields are from the clazz and group
+        // parameters above. If they are specified here they will be overwritten.
         this.memory = memory === undefined ? {} : memory;
+        // If this is specified it represents the level needed but if it can not be obtained due to the
+        // amount of spawn energy being limited then a number of creeps equal to this level will be spawned
+        // . It a nutshell, this dynamically adjusts the `count` parameter depending on the actual maximum
+        // level possible to build.
         this.needed_level = needed_level === undefined ? 0 : needed_level;
     }
 

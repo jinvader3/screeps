@@ -472,11 +472,17 @@ class Room {
       {}
     );
 
+    
+    let stor_energy_amount = this.get_storage() ? this.get_storage().store.getUsedCapacity(game.RESOURCE_ENERGY) : 0;
+    let srcs_count = this.sources.length;
+
+    let upgrader_level = Math.floor((stor_energy_amount / 10000) * 5) * srcs_count;
+    
     this.spawnman.reg_build(
       'upgrader',
       'upgrader',
       upgrader_bf,
-      this.sources.length > 1 ? 10 : 5,
+      upgrader_level,
       2,
       1,
       {}
