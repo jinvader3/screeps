@@ -66,8 +66,10 @@ if (global['Game'] !== undefined) {
     ORDER_BUY: ORDER_BUY,
     market: () => Game.market,
     RoomVisual: RoomVisual,
+    path_finder: () => PathFinder,
   };
 } else {
+
   // The actual constants are wrong which is good because code should
   // not reply on those values. If they were to there wouldn't be a
   // constant but a string you'd use. They could change so if this
@@ -85,6 +87,9 @@ if (global['Game'] !== undefined) {
   const g_rooms = {};
 
   let g_market = {
+  };
+
+  let g_path_finder = {
   };
 
   module.exports = {
@@ -154,6 +159,10 @@ if (global['Game'] !== undefined) {
     market: () => g_market,
     set_market: (v) => {
       g_market = v;
+    },
+    path_finder: () => g_path_finder,
+    set_path_finder: (v) => {
+      g_path_finder = v;
     },
   };
 }

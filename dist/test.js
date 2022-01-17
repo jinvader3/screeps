@@ -9,6 +9,7 @@ const { CreepUpgrader } = require('./creepupgrader');
 const { CreepClaimer } = require('./creepclaimer');
 const { CreepDummy } = require('./creepdummy');
 const { Terminal } = require('./terminal');
+const { PathManager } = require('./path');
 const game = require('./game');
 const _ = game._;
 
@@ -105,6 +106,192 @@ test.serial('creep_iface', t => {
     t.truthy(c.get_group() === 'okay')
     t.truthy(typeof c.get_memory === 'function');
   });
+
+  t.pass();
+});
+
+test.serial('path:cm1', t => {
+  const structs = [
+  ];
+
+  function add_struct (x, y, id) {
+    structs.push({
+      pos: {
+        x: x, 
+        y: y, 
+      },
+      id: id,
+    });
+  }
+
+  const broom = {
+    find: (what) => {
+      if (what !== game.FIND_STRUCTURES) {
+        t.fail();
+      }
+      return structs;
+    },
+    getPositionAt: (x, y) => {
+      return {
+        x: x,
+        y: y,
+      };
+    },
+    findPathTo: (a, b) => {
+      let cur = [a];
+      let pen = [];
+      let been = {};
+      let iter = 0;
+
+      console.log('===FINDPATHTO===')
+      console.log('start', a);
+      console.log('end', b);
+
+      let dirs = [
+        [-1, 0], [1, 0],
+        [-1, 1], [1, -1],
+        [-1, -1], [1, 1],
+        [0, 1], [0, -1],
+      ];
+
+      //console.log('start', cur[0]);
+
+      while (cur.length > 0) {
+        while (cur.length > 0) {
+          let chead = cur.pop();
+          for (let dir of dirs) {
+            let nx = chead.x + dir[0];
+            let ny = chead.y + dir[1];
+            if (nx < 0 || ny < 0 || nx > 49 || ny > 49) {
+              continue;
+            }
+            let nhead = { x: nx, y: ny };
+            if (been[nx + ny * 50] === undefined) {
+              if (!_.some(structs, s => s.pos.x === nx && s.pos.y === ny)) {
+                been[nx + ny * 50] = iter;
+                pen.push(nhead);
+              }
+            }
+          }
+        }
+        iter += 1;
+        cur = pen;
+        pen = [];
+      }
+      
+      let cpos = b;
+      let best = 9999;
+      let path = [b]
+      //
+      //for (let z = 0; z < 25; ++z) {
+      while (true) {
+        //console.log('cpos', cpos);
+        at_end = true;
+        for (let dir of dirs) {
+          let nx = cpos.x + dir[0];
+          let ny = cpos.y + dir[1];
+          if (nx < 0 || ny < 0 || nx > 49 || ny > 49) {
+            continue;
+          }
+          let v = been[nx + ny * 50];
+          if (v < best) {
+            at_end = false;
+            best = v;
+            best_pos = { x: nx, y: ny };
+            path.push(best_pos);
+          }
+        }
+        //
+        if (at_end) {
+          break;
+        }
+        //
+        cpos = best_pos;
+        //
+      }
+
+      path.push(a);
+      path = _.reverse(path); 
+      console.log(path);
+      return path;
+    },
+    lookAtArea: (top, left, bottom, right, as_array) => {
+      t.truthy(!as_array);
+
+      let out = {};
+      
+      for (let y = top; y < bottom + 1; ++y) {
+        for (let x = left; x < right + 1; ++x) {
+          if (x < 0 || y < 0) {
+            continue;
+          }
+          if (x > 49 || y > 49) {
+            continue;
+          }
+          let stuff = _.filter(structs, s => s.pos.x === x && s.pos.y === y);
+          out[y] = out[y] || {};
+          out[y][x] = stuff;
+          out[y][x].push({ type: 'terrain', terrain: 'plain' });     
+        }
+      }
+
+      return out;
+    },
+  };
+
+  const room = {
+    get_base_room: () => broom,
+  };
+
+  class CostMatrix {
+    constructor () {
+      this.d = new Uint8Array(50 * 50);
+    }
+
+    set (x, y, v) {
+      this.d[x + y * 50] = v;
+    }
+
+    get (x, y) {
+      return this.d[x + y * 50];
+    }
+  }
+
+  game.set_path_finder({
+    CostMatrix: CostMatrix,
+  });
+
+  console.log('!!!!', game.path_finder().CostMatrix);
+
+  add_struct(3, 0, 'c1')
+  add_struct(4, 3, 'e1');
+  add_struct(5, 4, 'e2');
+  add_struct(4, 5, 'e3');
+  add_struct(4, 6, 'e4');
+  add_struct(5, 7, 'e5');
+  add_struct(6, 8, 'e6');
+  add_struct(7, 9, 'e7');
+  add_struct(20, 20, 'e8');
+  add_struct(21, 3, 'e9');
+
+  let pm = new PathManager(room);
+
+  let cm = pm.get_all_stop_cost_matrix_dialated(50);
+
+  const fs = require('fs');
+
+  const data = [];
+
+  for (let y = 0; y < 50; ++y) {
+    let row = [];
+    data.push('\n');
+    for (let x = 0; x < 50; ++x) {
+      let v = cm.get(x, y);
+      data.push(`${x} ${y} ${v}\n`);
+    }
+  }
+
+  fs.writeFileSync('test.plot', data.join(''));
 
   t.pass();
 });

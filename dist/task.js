@@ -33,8 +33,9 @@ class Task {
   }
 
   transfer (to, amount, maxcap) {
-    this.charge(amount);
-    return to.credit(amount, maxcap);
+    let used = to.credit(amount, maxcap);
+    this.charge(used);
+    return used;
   }
 
   get_tasks () {
@@ -70,8 +71,10 @@ class Task {
     let v = this.get_credit();
     if (v + amount > maxcap) {
       this.set_credit(maxcap);
+      return maxcap - v;
     } else {
       this.set_credit(v + amount);
+      return amount;
     }
   }
 
@@ -94,13 +97,13 @@ class Task {
       return;
     }
 
-    //console.log(`task:running[${this.get_full_name()}]`);
 
     try {
       let st = game.cpu().getUsed();
       this.f(this);
       let et = game.cpu().getUsed();
       let dt = et - st;
+      console.log(`task:running[${this.get_full_name()}]`);
       this.charge(dt);
       stats.record_stat('charge.' + this.get_full_name(), dt);
       return null;

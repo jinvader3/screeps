@@ -12,9 +12,9 @@ module.exports.loop = function () {
         'warfare_small': [
           {
             uid: 'ironspear',
-            room: 'E57S32',
-            max_level: 3,
-            count: 3,
+            room: 'E59S33',
+            max_level: 6,
+            count: 1,
           },
         ],
         'remote_sources': [
@@ -26,6 +26,17 @@ module.exports.loop = function () {
               {
                 sid: '5bbcb06f9099fc012e63c2ce',
                 room: 'E56S33',
+              },
+            ],
+          },
+          {
+            uid: 'grape',
+            mining_level: 3,
+            hauling_power: 5,
+            sources: [
+              {
+                sid: '5bbcb0819099fc012e63c486',
+                room: 'E57S32',
               },
             ],
           },
@@ -91,7 +102,7 @@ module.exports.loop = function () {
     });
 
     // Each tick give 4 CPU and a bucket maximum of 10 CPU.
-    task.credit(4, 10);
+    task.credit(7, 10);
   }
 
   let res = te.run_tasks();

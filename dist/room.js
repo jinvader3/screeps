@@ -11,6 +11,7 @@ const { CreepRemoteMiner } = require('./creeprminer');
 const { CreepRemoteHauler } = require('./creeprhauler');
 const { Stats } = require('./stats');
 const { CreepLabRat, LabManager } = require('./labrats');
+const { PathManager } = require('./path');
 
 class Room {
   constructor (room, ecfg) {
@@ -26,6 +27,10 @@ class Room {
     this.ecfg = ecfg;
     this.spawnman = new SpawnManager();
     this.stats = new Stats();
+    this.pathman = new PathManager(this);
+    // A smoothed cost map which looks like a gravity well around all the structures. This
+    // is supposed to keep the path finding using the least amount of CPU possible.
+    this.scm = null;
   }
 
   record_stat (key, value) {
@@ -62,6 +67,10 @@ class Room {
     return this.room.name;
   }
 
+  get_base_room () {
+    return this.room;
+  }
+
   get_terminal () {
     return this.room.terminal;
   }
@@ -76,9 +85,6 @@ class Room {
 
   get_spawnman () {
     return this.spawnman;
-  }
-
-  think_build_creep () {
   }
 
   hook_creep_method (creep, method, stat_name) {
@@ -724,6 +730,29 @@ class Room {
 
     let lab_creeps = [];
 
+    /*
+    {
+      const rm = this.room.memory;
+      let scount = this.structs.length;
+      if (scount !== rm.scm_scount || !rm.scm) {
+        rm.scm_scount = scount;
+        console.log('building scm smoothed');
+        this.scm = this.pathman.get_all_stop_cost_matrix_smoothed();
+        rm.scm = this.scm.serialize();
+      } else {
+        if (this.scm === null) {
+          //this.scm = game.path_finder().CostMatrix.deserialize(rm.scm);
+          //let rv = new game.RoomVisual(this.room.name);
+          //for (let y = 0; y < 50; ++y) {
+          //  for (let x = 0; x < 50; ++x) {
+          //    //rv.text('@', x, y);
+          //  }
+          //}
+        }
+      }
+    }
+    */
+
     for (let ndx in this.creeps) {
       let creep = this.creeps[ndx];
 
@@ -732,19 +761,23 @@ class Room {
         continue;
       }
 
+      let ctask;
+
       if (creep.get_group() === 'hauler') {
         let _dt_pull = () => this.dt_run(dt_hauler_pull, creep);
         let _dt_push = () => this.dt_run(dt_push_hauler, creep);
-        task.spawn(0, `creep:${creep.get_name()}`, ctask => {
+        ctask = task.spawn_isolated(0, `creep:${creep.get_name()}`, ctask => {
           creep.tick(_dt_pull, _dt_push);
         });
       } else {
         let _dt_pull = () => this.dt_run(dt_worker_pull, creep);
         let _dt_push = () => this.dt_run(dt_push, creep);
-        task.spawn(0, `creep:${creep.get_name()}`, ctask => {
+        ctask = task.spawn_isolated(0, `creep:${creep.get_name()}`, ctask => {
           creep.tick(_dt_pull, _dt_push);
         });
       }
+
+      console.log('lost', this.room.name, task.transfer(ctask, 1, 1));
     }
 
     let lab_task = task.spawn_isolated(40, `labman`, ctask => {

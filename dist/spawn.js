@@ -124,12 +124,6 @@ class SpawnManager {
             let cond_b = rcreeps.length < count;
             let cond_c = rcreeps.length === count;
 
-            console.log('count_mul', count_mul, reg.count);
-            console.log(
-              `reg.group[count=${count}]`, 
-              room.get_name(), reg.group, cond_a, cond_b, cond_c
-            );
-
             if ((cond_a && cond_c) || cond_b) {
                 // Try to spawn this creep.
                 let free_spawns = _.filter(spawns, spawn => !spawn.spawning);
