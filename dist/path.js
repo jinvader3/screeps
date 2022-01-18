@@ -1,3 +1,5 @@
+"use strict";
+
 const game = require('./game');
 _ = game._;
 
@@ -187,8 +189,8 @@ class PathManager {
     let csites = this.broom.find(game.FIND_CONSTRUCTION_SITES);
 
     for (let csite of csites) {
-      let a = csite.structureType === STRUCTURE_ROAD;
-      let b = csite.structureType === STRUCTURE_CONTAINER;
+      let a = csite.structureType === game.STRUCTURE_ROAD;
+      let b = csite.structureType === game.STRUCTURE_CONTAINER;
       if (a || b) {
         continue;
       }
@@ -198,12 +200,12 @@ class PathManager {
 
     // Remark structures and walls as impassabe EXCEPT for containers.
     for (let s of structs) {
-      if (s.structureType === STRUCTURE_ROAD) {
+      if (s.structureType === game.STRUCTURE_ROAD) {
         cm.set(s.pos.x, s.pos.y, 1);
         continue;
       }
 
-      if (s.structureType !== STRUCTURE_CONTAINER) {
+      if (s.structureType !== game.STRUCTURE_CONTAINER) {
         cm.set(s.pos.x, s.pos.y, 255);
       }
     }
