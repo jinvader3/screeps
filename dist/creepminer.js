@@ -1,6 +1,7 @@
 const { Creep } = require('./creep');
 const game = require('./game');
 const _ = game._;
+const { logging } = require('./logging');
 
 class CreepMiner extends Creep {
   move_to (trgt) {
@@ -41,13 +42,17 @@ class CreepMiner extends Creep {
   }
 
   tick () {
+    logging.debug('tick');
+
     let source_id = this.creep.memory.s;
     let source = game.getObjectById()(source_id);
 
-    console.log('source', this.creep.pos, source);
-    
+    logging.debug(`source_id:${source_id} source:${source}`);
+
     if (!source) {
+      logging.debug('no valid source');
       if (this.creep.memory.sr) {
+        logging.debug(`traveling to source room ${this.creep.memory.sr}`);
         let pos = new RoomPosition(0, 0, this.creep.memory.sr);
         this.creep.moveTo(pos);
       }
@@ -56,6 +61,7 @@ class CreepMiner extends Creep {
 
     // Look for chest around the source.
     let cont = this.find_container_near_source(source);
+    logging.debug(`cont:${cont}`);
 
     if (cont) {
       let link = this.find_link_near_container(cont);
@@ -84,9 +90,12 @@ class CreepMiner extends Creep {
       }
     } else {
       let res = this.creep.harvest(source);
+      logging.debug(`harvest = ${res}`);
       if (res === game.ERR_NOT_IN_RANGE) {
+        logging.debug('moving to source');
         this.move_to(source);
       } else if (res === game.OK) {
+        logging.debug('thinking about creating csite for contanier');
         // Check if a construction site already exists. This is a simple
         // method. It is not accurate.
         // TODO: push construction requests to the room for evaluation

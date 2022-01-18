@@ -3,8 +3,7 @@ const _ = game._;
 const { Room } = require('./room');
 const { TaskEngine } = require('./task');
 const { Stats } = require('./stats');
-
-
+const { logging } = require('./logging');
 
 module.exports.rooms = {};
 

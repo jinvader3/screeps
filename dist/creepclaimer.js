@@ -1,6 +1,7 @@
 const { Creep } = require('./creep');
 const game = require('./game');
 const _ = game._;
+const { logging } = require('./logging');
 
 class CreepClaimer extends Creep {
   get_target_room () {
@@ -17,19 +18,24 @@ class CreepClaimer extends Creep {
 
   tick () {
     if (!this.in_target_room()) {
+      logging.log('!this.in_target_room()');
       this.travel_to_target_room();
       return;
     }
     
     let croom = game.rooms()[this.creep.memory.tr];
-
     let can_claim = _.some(this.creep.body, part => part.type === game.CLAIM);
+    logging.log(`croom:${croom.name} can_claim:${can_claim}`);
 
     if (can_claim) {
-      return this.tick_controller_worker(croom);
+      return logging.wrapper('worker', () => {
+        return this.tick_controller_worker(croom);
+      });
     }
 
-    return this.tick_spawn_builder(croom);
+    return logging.wrapper('builder', () => {
+      return this.tick_spawn_builder(croom);
+    });
   }
 
   tick_spawn_builder (croom) {
@@ -88,20 +94,25 @@ class CreepClaimer extends Creep {
 
   tick_controller_worker (croom) {
     if (!croom) {
+      logging.log('!croom');
       return;
     }
 
     if (croom && croom.controller && croom.controller.my) {
+      logging.log('room is already owned; shutting down');
       return;
     }
 
     if (croom.controller.level == 0) {
-      if (this.creep.claimController(croom.controller) === ERR_NOT_IN_RANGE) {
+      let res = this.creep.claimController(croom.controller);
+      logging.log(`claimController = ${res}`);
+      if (res === ERR_NOT_IN_RANGE) {
         this.creep.moveTo(croom.controller);
       }
     } else {
       if (!croom.controller.my) {
         let res = this.creep.attackController(croom.controller);
+        logging.log(`attackController = ${res}`);
         if (res === ERR_NOT_IN_RANGE) {
           this.creep.moveTo(croom.controller);
         }

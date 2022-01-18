@@ -5,6 +5,7 @@
 const game = require('./game');
 const _ = game._;
 const { Stats } = require('./stats');
+const { logging } = require('./logging');
 
 class Task {
   constructor (parent, priority, name, f, payer, te) {
@@ -97,13 +98,16 @@ class Task {
       return;
     }
 
-
     try {
+      let fn = this.get_full_name();
       let st = game.cpu().getUsed();
-      this.f(this);
+      logging.log(`task:running[${fn}]`);
+      logging.reset();
+      logging.wrapper(fn, () => {
+        this.f(this);
+      });
       let et = game.cpu().getUsed();
       let dt = et - st;
-      console.log(`task:running[${this.get_full_name()}]`);
       this.charge(dt);
       stats.record_stat('charge.' + this.get_full_name(), dt);
       return null;

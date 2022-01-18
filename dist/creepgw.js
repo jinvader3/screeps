@@ -1,6 +1,7 @@
 const { Creep } = require('./creep');
 const game = require('./game');
 const _ = game._;
+const { logging } = require('./logging');
 
 class CreepGeneralWorker extends Creep {
   get_mode () {
@@ -183,7 +184,6 @@ class CreepGeneralWorker extends Creep {
       maxRooms: 1,
       costCallback: (room_name, cm) => {
         if (this.room.get_name() === room_name) {
-          console.log('general worker using scm', this.room.scm);
           return this.room.scm;
         }
       
@@ -199,25 +199,11 @@ class CreepGeneralWorker extends Creep {
     });
   }
 
-  debug () {
-    if (this.creep.memory.g !== true) {
-      return;
-    }
-
-    let args = [];
-
-    for (let x = 0; x < arguments.length; ++x) {
-      args.push(arguments[x]);
-    }
-
-    console.log.apply(console, args);
-  }
-
   tick (dt_pull, dt_push, cdepth) {
     if (cdepth === undefined) {
       cdepth = 0;
     } else if (cdepth >= 4) {
-      console.log('[problem] tick on creepgw call graph depth exceeded');
+      logging.warn('[problem] tick on creepgw call graph depth exceeded');
       return;
     }
 
@@ -226,21 +212,26 @@ class CreepGeneralWorker extends Creep {
     let ecarry = this.creep.store.getUsedCapacity(game.RESOURCE_ENERGY);
     let efree = this.creep.store.getFreeCapacity(game.RESOURCE_ENERGY);
 
+    logging.debug(`trgt:${trgt}`);
+    logging.debug(`ecarry:${ecarry} efree:${efree}`);
+
     if (!trgt.trgt) {
       let a = this.get_mode() === 'pull' && efree > 0;
       let b = ecarry === 0;
 
+      logging.debug(`a:${a} b:${b}`);
+
       if (a || b) {
         trgt = dt_pull();
         this.set_mode('pull');
-        console.log(this.creep.memory.g, 'pull', trgt.trgt, trgt.opts);
+        logging.info(this.creep.memory.g, 'pull', trgt.trgt, trgt.opts);
         if (!trgt.trgt) {
             return null;
         }
       } else {
         trgt = dt_push();
         this.set_mode('push');
-        console.log(this.creep.memory.g, 'push', trgt.trgt, trgt.opts);
+        logging.info(this.creep.memory.g, 'push', trgt.trgt, trgt.opts);
         if (!trgt.trgt) {
             return null;
         }

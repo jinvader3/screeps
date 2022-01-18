@@ -12,6 +12,7 @@ const { CreepRemoteHauler } = require('./creeprhauler');
 const { Stats } = require('./stats');
 const { CreepLabRat, LabManager } = require('./labrats');
 const { PathManager } = require('./path');
+const { logging } = require('./logging');
 
 class Room {
   constructor (room, ecfg) {
@@ -169,6 +170,7 @@ class Room {
     this.hook_creep_method(creep, 'withdraw', 'st_wt');
     this.hook_creep_method(creep, 'transfer', 'st_xf');
 
+    /*
     if (game.RoomVisual) {
       const cm = creep.memory;
       const score = (cm.st_hr || 0) + (cm.st_up || 0) + 
@@ -176,6 +178,7 @@ class Room {
       let rv = new game.RoomVisual(creep.pos.roomName);
       rv.text(`${score}`, creep.pos.x, creep.pos.y);
     }
+    */
 
     switch (creep.memory.c) {
       case 'gw': 
@@ -393,12 +396,15 @@ class Room {
         let tr_my_controller = trobj && trobj.controller && trobj.controller.my;
 
         if (!trobj || !tr_my_controller) {
+          console.log('registered to build claimer [claim style]');
           this.spawnman.reg_build(
             // The creep class/clazz.
             'claimer',
             // The group.
             `claimer_${op.tr}`,
             claimteam_bf,
+            // The max level.
+            10,
             // The priority.
             5,
             // The count.
@@ -411,12 +417,15 @@ class Room {
           );
         } else {
           if (tr_has_no_spawn) {
+            console.log('registered to build claimer [build style]');
             this.spawnman.reg_build(
               // The creep class/clazz.
               'claimer',
               // The group.
               `claimer_${op.tr}`,
               claimteam_builders_bf,
+              // The max level.
+              10,
               // The priority.
               5,
               // The count.
@@ -600,10 +609,13 @@ class Room {
     this.containers_near_sources_with_energy = [];
     this.containers_adj_controller = [];
     this.active_containers_adj_controller = [];
+    this.containers_adj_mineral = [];
+    this.active_containers_adj_mineral = [];
     this.links = [];
     this.links_adj_storage = [];
     this.labs = [];
     this.extractors = [];
+    this.minerals = this.room.find(game.FIND_MINERALS);
 
     _.each(this.room.find(game.FIND_STRUCTURES), s => {
       this.structs.push(s);
@@ -613,7 +625,7 @@ class Room {
         case game.STRUCTURE_SPAWN: this.spawns.push(s); return;
         case game.STRUCTURE_ROAD: this.roads.push(s); return;
         case game.STRUCTURE_LAB: this.labs.push(s); return;
-        case game.StRUCTURE_EXTRACTOR: this.extractors.push(s); return;
+        case game.STRUCTURE_EXTRACTOR: this.extractors.push(s); return;
         case game.STRUCTURE_LINK:
           this.links.push(s);
           let rstor = this.room.storage;
@@ -638,6 +650,12 @@ class Room {
             this.containers_adj_controller.push(s);
             if (!this.container_evaluate_state(s, 500, 1500)) {
               this.active_containers_adj_controller.push(s);
+            }
+          }
+          if (_.some(this.minerals, mineral => s.pos.isNearTo(mineral))) {
+            this.containers_adj_mineral.push(s);
+            if (!this.container_evaluate_state(s, 500, 1500)) {
+              this.active_containers_adj_mineral.push(s);
             }
           }
           return;
@@ -756,7 +774,6 @@ class Room {
       let scount = this.structs.length;
       if (scount !== rm.scm_scount || !rm.scm) {
         rm.scm_scount = scount;
-        console.log('building scm smoothed');
         this._scm = this.pathman.get_all_stop_cost_matrix_smoothed();
         rm.scm = this._scm.serialize();
       } else {
@@ -775,7 +792,7 @@ class Room {
     for (let ndx in this.creeps) {
       let creep = this.creeps[ndx];
 
-      if (creep instanceof CreepLabRat) {
+      if (creep instanceof CreepLabRat || creep.get_memory().g === 'labrat_extractor') {
         lab_creeps.push(creep);
         continue;
       }
@@ -786,17 +803,25 @@ class Room {
         let _dt_pull = () => this.dt_run(dt_hauler_pull, creep);
         let _dt_push = () => this.dt_run(dt_push_hauler, creep);
         ctask = task.spawn_isolated(0, `creep:${creep.get_name()}`, ctask => {
+          let cm = creep.get_memory();
+          logging.log(`CLZ:${cm.c} GRP:${cm.g}`);
+          logging.log(`BODY:${_.map(creep.creep.body, part => part.type)}`);
+          logging.log('------------------------');
           creep.tick(_dt_pull, _dt_push);
         });
       } else {
         let _dt_pull = () => this.dt_run(dt_worker_pull, creep);
         let _dt_push = () => this.dt_run(dt_push, creep);
         ctask = task.spawn_isolated(0, `creep:${creep.get_name()}`, ctask => {
+          let cm = creep.get_memory();
+          logging.log(`CLZ:${cm.c} GRP:${cm.g}`);
+          logging.log(`BODY:${_.map(creep.creep.body, part => part.type)}`);
+          logging.log('------------------------');
           creep.tick(_dt_pull, _dt_push);
         });
       }
 
-      console.log('lost', this.room.name, task.transfer(ctask, 1, 1));
+      task.transfer(ctask, 1, 1);
     }
 
     let lab_task = task.spawn_isolated(40, `labman`, ctask => {
@@ -806,7 +831,6 @@ class Room {
 
     task.transfer(lab_task, 1, 5);
 
-    console.log('scheduled spawnman task', this.get_name());
     task.spawn(100, `spawnman`, ctask => {
       let room_energy = this.room.energyCapacityAvailable;
       let workers = this.group_count('worker');
@@ -816,7 +840,6 @@ class Room {
         room_energy = 300;
       }
 
-      console.log('<spawnman>', this.get_name());
       this.spawnman.process(this, room_energy, this.creeps, this.spawns);
     });
   }
@@ -1181,7 +1204,6 @@ class Room {
         nearest = creep.get_pos().findClosestByPath(valids);
       }
 
-      console.log('nearest', nearest);
       return [nearest, oneshot];
     };
   }

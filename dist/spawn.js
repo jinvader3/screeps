@@ -1,5 +1,6 @@
 const game = require('./game');
 _ = game._;
+const { logging } = require('./logging');
 
 /// This is a spawn manager registration entry. It represents the caller's desire for the spawn to potentially
 /// build a creep. The key here is that it is not an actual request but rather a registration to the spawn that
@@ -51,7 +52,7 @@ class Reg {
                     case game.HEAL: return 250;
                     case game.TOUGH: return 10;
                     default:
-                        console.log('unknown body part', part);
+                        logging.log('unknown body part', part);
                         return 999999;
                 }
             });
@@ -85,12 +86,16 @@ class SpawnManager {
     }
 
     reg_build (clazz, group, build_gf, max_level, priority, count, memory, needed_level) {
+        logging.log(
+          `reg_build(${clazz}, ${group}, ..., ${max_level}, ${priority}, ${count}, ${memory}, ${needed_level})`
+        );
         this.regs.push(new Reg(
             clazz, group, build_gf, max_level, priority, count, memory, needed_level
         ));
     }
 
     process (room, max_energy, creeps, spawns) {
+        logging.log(`[spawn processing ${room.room.name}]`);
         // Order the registrations by priority.
         this.regs.sort((a, b) => a.priority > b.priority ? 1 : -1);
         // Find creeps of the highest priority that are soon to expire.
@@ -137,15 +142,16 @@ class SpawnManager {
                     n_memory['c'] = reg.clazz;
                     n_memory['g'] = reg.group;
 
-                    free_spawns[0].spawnCreep(
+                    let res = free_spawns[0].spawnCreep(
                         body,
                         `${room.get_name()}:${game.time()}`,
                         { memory: n_memory }
                     );
-                    //console.log('pretend spawn');
-                    //console.log(body);
-                    //console.log(`${room.get_name()}:${game.time()}`);
-                    //console.log(n_memory);
+                    
+                    logging.log('spawn', res);
+                    logging.log(body);
+                    logging.log(`${room.get_name()}:${game.time()}`);
+                    logging.log(n_memory);
                 }
                 return;
             }
