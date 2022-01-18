@@ -95,8 +95,17 @@ class CreepClaimer extends Creep {
       return;
     }
 
-    if (this.creep.claimController(croom.controller) === ERR_NOT_IN_RANGE) {
-      this.creep.moveTo(croom.controller);
+    if (croom.controller.level == 0) {
+      if (this.creep.claimController(croom.controller) === ERR_NOT_IN_RANGE) {
+        this.creep.moveTo(croom.controller);
+      }
+    } else {
+      if (!croom.controller.my) {
+        let res = this.creep.attackController(croom.controller);
+        if (res === ERR_NOT_IN_RANGE) {
+          this.creep.moveTo(croom.controller);
+        }
+      }
     }
   }
 }

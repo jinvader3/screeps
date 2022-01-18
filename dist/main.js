@@ -4,12 +4,22 @@ const { Room } = require('./room');
 const { TaskEngine } = require('./task');
 const { Stats } = require('./stats');
 
+
+
+module.exports.rooms = {};
+
 module.exports.loop = function () {
   let rooms = {};
+  module.exports.rooms = rooms;
 
   let extra_config = {
     'E57S33': {
-        'warfare_small': [
+        claimteam: [
+          {
+            tr: 'E59S32',
+          },
+        ], 
+        /*'warfare_small': [
           {
             uid: 'ironspear',
             room: 'E59S33',
@@ -40,7 +50,7 @@ module.exports.loop = function () {
               },
             ],
           },
-        ],
+        ],*/
     },
   };
 

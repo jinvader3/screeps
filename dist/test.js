@@ -124,12 +124,35 @@ test.serial('path:cm1', t => {
     });
   }
 
+  const sources = [
+    {
+      pos: {
+        x: 37,
+        y: 38,
+      },
+    },
+    {
+      pos: {
+        x: 13,
+        y: 13,
+      },
+    },
+  ];
+
   const broom = {
+    controller: {
+      pos: {
+        x: 9,
+        y: 9,
+      },
+    },
+    sources: sources,
     find: (what) => {
-      if (what !== game.FIND_STRUCTURES) {
-        t.fail();
+      switch (what) {
+        case game.FIND_STRUCTURES: return structs;
+        case game.FIND_SOURCES: return sources;
+        default: t.fail();
       }
-      return structs;
     },
     getPositionAt: (x, y) => {
       return {
@@ -137,7 +160,7 @@ test.serial('path:cm1', t => {
         y: y,
       };
     },
-    findPathTo: (a, b) => {
+    findPath: (a, b) => {
       let cur = [a];
       let pen = [];
       let been = {};
@@ -146,6 +169,12 @@ test.serial('path:cm1', t => {
       console.log('===FINDPATHTO===')
       console.log('start', a);
       console.log('end', b);
+
+      t.truthy(a && b);
+      t.truthy(a.x !== undefined && a.x !== null);
+      t.truthy(a.y !== undefined && a.y !== null);
+      t.truthy(b.x !== undefined && b.x !== null);
+      t.truthy(b.y !== undefined && b.y !== null);
 
       let dirs = [
         [-1, 0], [1, 0],
@@ -180,20 +209,23 @@ test.serial('path:cm1', t => {
       }
       
       let cpos = b;
-      let best = 9999;
+      let best = been[cpos.x + cpos.y * 50];
       let path = [b]
-      //
-      //for (let z = 0; z < 25; ++z) {
+
+      //for (let z = 0; z < 45; ++z) {
       while (true) {
         //console.log('cpos', cpos);
         at_end = true;
+
         for (let dir of dirs) {
           let nx = cpos.x + dir[0];
           let ny = cpos.y + dir[1];
           if (nx < 0 || ny < 0 || nx > 49 || ny > 49) {
             continue;
           }
+
           let v = been[nx + ny * 50];
+
           if (v < best) {
             at_end = false;
             best = v;

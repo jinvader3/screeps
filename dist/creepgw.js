@@ -179,7 +179,24 @@ class CreepGeneralWorker extends Creep {
   }
 
   move_to (trgt) {
-    return this.creep.moveTo(trgt);
+    return this.creep.moveTo(trgt, {
+      maxRooms: 1,
+      costCallback: (room_name, cm) => {
+        if (this.room.get_name() === room_name) {
+          console.log('general worker using scm', this.room.scm);
+          return this.room.scm;
+        }
+      
+        return null;
+      },
+      visualizePathStyle: {
+        fill: 'transparent',
+        stroke: '#ff9999',
+        lineStyle: 'dashed',
+        strokeWidth: .15,
+        opacity: .7,
+      },
+    });
   }
 
   debug () {

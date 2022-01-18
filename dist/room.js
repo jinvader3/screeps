@@ -30,7 +30,8 @@ class Room {
     this.pathman = new PathManager(this);
     // A smoothed cost map which looks like a gravity well around all the structures. This
     // is supposed to keep the path finding using the least amount of CPU possible.
-    this.scm = null;
+    this._scm = null;   // This is the original.
+    this.scm = null;    // This has creep positions added or other dynamic per tick things.
   }
 
   record_stat (key, value) {
@@ -273,56 +274,6 @@ class Room {
       roomEnergy = 300;
     }
     
-    /*
-    if (this.room.name === 'E56S31') {
-      let tclaim = 'E57S31';
-
-      if (
-        // If the room is not claimed by us and we do not have at least
-        // one claimer built then build one.
-        (!game.rooms()[tclaim] || !game.rooms()[tclaim].controller.my) &&
-        group_count('claimer_' + tclaim) < 1
-        ) {
-        console.log('trying to build claimer');
-        this.spawns[0].spawnCreep(
-          [game.MOVE, game.CLAIM],
-          this.room.name + ':' + game.time(),
-          {
-            memory: {
-              'c': 'claimer',
-              'g': 'claimer_' + tclaim,
-              'tr': tclaim,
-            },
-          }
-        );
-      }
-
-      if (game.rooms()[tclaim] && game.rooms()[tclaim].controller.my) {
-        let troom = game.rooms()[tclaim];
-
-        if (troom.find(FIND_MY_SPAWNS).length == 0) {
-          if (group_count('claimer_' + tclaim) < 6) {
-            console.log('trying to spawn claimer to create spawn');
-            let res = this.spawns[0].spawnCreep(
-              [game.MOVE, game.MOVE, game.WORK, game.CARRY],
-              this.room.name + ':' + game.time(),
-              {
-                memory: {
-                  'c': 'claimer',
-                  'g': 'claimer_' + tclaim,
-                  'tr': tclaim,
-                }
-              }
-            );
-            console.log('res', res);
-          }
-        }
-      }
-
-      //console.log('----------------');
-   }
-    */
-
     function *miner_bf() {
         let body = [];
         body.push(game.MOVE);
@@ -413,9 +364,78 @@ class Room {
         );        
       });
     }
+    
+    /////////////////////////////////////////////
+    if (this.ecfg.claimteam) {
+      function *claimteam_bf () {
+        let body = [];
+        while (true) {
+          body.push(game.MOVE);
+          body.push(game.CLAIM);
+          yield body;
+        }
+      }
 
+      function *claimteam_builders_bf () {
+        let body = [];
+        while (true) {
+          body.push(game.MOVE);
+          body.push(game.MOVE);
+          body.push(game.WORK);
+          body.push(game.CARRY);
+          yield body;
+        }
+      }
+
+      _.each(this.ecfg.claimteam, op => {
+        let trobj = game.rooms()[op.tr];
+        let tr_has_no_spawn = trobj && trobj.find(game.FIND_MY_SPAWNS).length === 0;
+        let tr_my_controller = trobj && trobj.controller && trobj.controller.my;
+
+        if (!trobj || !tr_my_controller) {
+          this.spawnman.reg_build(
+            // The creep class/clazz.
+            'claimer',
+            // The group.
+            `claimer_${op.tr}`,
+            claimteam_bf,
+            // The priority.
+            5,
+            // The count.
+            op.count || 1,
+            // The memory.
+            {
+              // The target room.
+              tr: op.tr,
+            }
+          );
+        } else {
+          if (tr_has_no_spawn) {
+            this.spawnman.reg_build(
+              // The creep class/clazz.
+              'claimer',
+              // The group.
+              `claimer_${op.tr}`,
+              claimteam_builders_bf,
+              // The priority.
+              5,
+              // The count.
+              op.count || 6,
+              // The memory.
+              {
+                // The target room.
+                tr: op.tr,
+              }
+            );            
+          }
+        }
+      });  
+    }
+    /////////////////////////////////////////////
+
+    /////////////////////////////////////////////
     if (this.ecfg.warfare_small) {
-      function *fighter_bf() {
+      function *fighter_bf () {
         let body = [];
         while (true) {
           body.push(game.MOVE);
@@ -437,6 +457,7 @@ class Room {
         );
       });
     }
+    /////////////////////////////////////////////
 
     function *miner_bf() {
         let body = [];
@@ -730,28 +751,26 @@ class Room {
 
     let lab_creeps = [];
 
-    /*
     {
       const rm = this.room.memory;
       let scount = this.structs.length;
       if (scount !== rm.scm_scount || !rm.scm) {
         rm.scm_scount = scount;
         console.log('building scm smoothed');
-        this.scm = this.pathman.get_all_stop_cost_matrix_smoothed();
-        rm.scm = this.scm.serialize();
+        this._scm = this.pathman.get_all_stop_cost_matrix_smoothed();
+        rm.scm = this._scm.serialize();
       } else {
-        if (this.scm === null) {
-          //this.scm = game.path_finder().CostMatrix.deserialize(rm.scm);
-          //let rv = new game.RoomVisual(this.room.name);
-          //for (let y = 0; y < 50; ++y) {
-          //  for (let x = 0; x < 50; ++x) {
-          //    //rv.text('@', x, y);
-          //  }
-          //}
+        if (this._scm === null) {
+          this._scm = game.path_finder().CostMatrix.deserialize(rm.scm);
         }
       }
     }
-    */
+
+    this.scm = this._scm.clone();
+    let all_creeps = this.room.find(game.FIND_CREEPS);
+    for (let creep of all_creeps) {
+      this.scm.set(creep.pos.x, creep.pos.y, 255);
+    }
 
     for (let ndx in this.creeps) {
       let creep = this.creeps[ndx];

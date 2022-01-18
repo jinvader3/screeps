@@ -73,7 +73,7 @@ class PathManager {
             if (nx > 0 && ny > 0 && nx < 50 && ny < 50) {
               let nv = cm.get(nx, ny);
               if (nv === 0) {
-                cm.set(nx, ny, v + 1);
+                cm.set(nx, ny, v * 2);
               }
             }
           }
@@ -85,7 +85,7 @@ class PathManager {
   }
 
   get_all_stop_cost_matrix_smoothed () {
-    return this.get_all_stop_cost_matrix_dialated(50);
+    return this.get_all_stop_cost_matrix_dialated(254);
   }
 
   get_all_stop_cost_matrix_dialated (dialated_count) {
@@ -100,6 +100,13 @@ class PathManager {
 
   get_all_stop_cost_matrix () {
     let structs = this.broom.find(game.FIND_STRUCTURES);
+    let sources = this.broom.find(game.FIND_SOURCES);
+
+    for (let source of sources) {
+      structs.push(source);
+    }
+
+    structs.push(this.broom.controller);
 
     if (structs.length === 0) {
       throw new Error('The room is empty!');
@@ -155,7 +162,13 @@ class PathManager {
     // all inter-room pathing operations search within. This will reduce the amount of
     // CPU needed.
     let cm = new (game.path_finder().CostMatrix)();
-    
+
+    for (let y = 0; y < 50; ++y) {
+      for (let x = 0; x < 50; ++x) {
+        cm.set(x, y, 0);
+      }
+    }   
+ 
     // Mark all around each structure.
     for (let s of structs) {
       const clear_spots = this.get_clear_spots_around_struct(s);
@@ -169,6 +182,50 @@ class PathManager {
       let part = long_road[x];
       cm.set(part.x, part.y, 1);
     }
+
+    // Mark all construction sites except containers and roads as impassable.
+    let csites = this.broom.find(game.FIND_CONSTRUCTION_SITES);
+
+    for (let csite of csites) {
+      let a = csite.structureType === STRUCTURE_ROAD;
+      let b = csite.structureType === STRUCTURE_CONTAINER;
+      if (a || b) {
+        continue;
+      }
+    
+      cm.set(csite.pos.x, csite.pos.y, 255);
+    }
+
+    // Remark structures and walls as impassabe EXCEPT for containers.
+    for (let s of structs) {
+      if (s.structureType === STRUCTURE_ROAD) {
+        cm.set(s.pos.x, s.pos.y, 1);
+        continue;
+      }
+
+      if (s.structureType !== STRUCTURE_CONTAINER) {
+        cm.set(s.pos.x, s.pos.y, 255);
+      }
+    }
+
+    let terrain = this.broom.getTerrain();
+
+    for (let y = 0; y < 50; ++y) {
+      for (let x = 0; x < 50; ++x) {
+        switch (terrain.get(x, y)) {
+          case game.TERRAIN_MASK_WALL:
+            // Walls are currently impassable unless we build tunnels.
+            cm.set(x, y, 255); 
+            break
+          case game.TERRAIN_MASK_SWAMP:
+            // Allow swamp to be high but NOT impassable.
+            cm.set(x, y, Math.min(cm.get(x, y, 255) * 2, 254));
+            break;
+        }
+      }
+    }
+
+    // Double the cost of swamps.
 
     return cm;
   }
