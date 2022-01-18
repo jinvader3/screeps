@@ -9,11 +9,14 @@ class CreepLabRat extends StateMachineCreep {
     logging.info('labrat ticking');
 
     _.each (labman.room.active_containers_adj_mineral, cont => {
+      logging.info('trying to add state set for active containers adj mineral');
       this.stmh_set(`acam:${cont.id}`, ss => {
+        logging.info('adding state set');
         // This will drop off if our storage is already empty.
-        this.stmh_dump_store_to_object(this.room.get_storage());
-        this.stmh_load_all_from_store(cont);
-        this.stmh_dump_store_to_object(this.room.get_storage());
+        logging.info(`room.get_storage=${this.room.get_storage()}`);
+        this.stmh_dump_store_to_object(ss, this.room.get_storage());
+        this.stmh_load_all_from_store(ss, cont);
+        this.stmh_dump_store_to_object(ss, this.room.get_storage());
         return true;
       });
     });

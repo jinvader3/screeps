@@ -151,8 +151,14 @@ test.serial('path:cm1', t => {
       switch (what) {
         case game.FIND_STRUCTURES: return structs;
         case game.FIND_SOURCES: return sources;
+        case game.FIND_CONSTRUCTION_SITES: return [];
         default: t.fail();
       }
+    },
+    getTerrain: () => {
+      return {
+        get: (x, y) => 0,
+      };
     },
     getPositionAt: (x, y) => {
       return {
@@ -331,8 +337,8 @@ test.serial('path:cm1', t => {
 test.serial('bootup', t => {
   game.memory().creeps = {};
   game.memory().creeps['E32S87:apple'] = {
-    c: 'gw',
-    g: 'worker',
+    c: 'labrat',
+    g: 'labrat_mover',
   };
 
   game.creeps()['E32S87:apple'] = {
