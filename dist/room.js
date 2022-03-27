@@ -718,7 +718,7 @@ class Room {
     let dt_worker_pull = [
       this.dt_pull_storage(),
       this.dt_pull_energy_nearby_sources(),
-      this.dt_pull_energy_containers_nearby_sources(),
+      this.dt_pull_energy_containers_nearby_sources({}),
       this.dt_pull_sources(true),
     ];
 
@@ -848,7 +848,7 @@ class Room {
       let workers = this.group_count('worker');
       let haulers = this.group_count('hauler');
 
-      logging.debug(`thinking about emergency energy status workers=${workers} haulers=${haulers}`);
+      logging.debug(`workers=${workers} haulers=${haulers}`);
       if (workers === 0 && haulers === 0) {
         logging.warn('Setting total room energy to 300 due to no workers or haulers being present.');
         room_energy = 300;
@@ -1032,7 +1032,9 @@ class Room {
     };
   }
 
-  dt_pull_energy_containers_nearby_sources (oneshot) {
+  dt_pull_energy_containers_nearby_sources (
+    { oneshot = false, nearest = false }
+  ) {
     return (creep) => {
         let conts = _.reduce(this.sources, (iv, source) => {
           let conts = _.filter(
@@ -1045,8 +1047,26 @@ class Room {
           _.each(conts, cont => iv.push(cont));
           return iv;
         }, []);
+
+        if (nearest === false) {
+          conts.sort((a, b) => { 
+            let av = a.store.getUsedCapacity(
+              game.RESOURCE_ENERGY
+            );
+            let bv = b.store.getUsedCapacity(
+              game.RESOURCE_ENERGY
+            );
+            return av > bv ? -1 : 1;
+          });
+        }
+
         return [
-            creep.get_pos().findClosestByPath(conts),
+            // Do not bother with the most close. Grab the one
+            // with the most energy inside of it.
+            nearest !== false ?
+              creep.get_pos().findClosestByPath(conts) :
+              conts.length > 0 ? conts[0] : null
+            , 
             oneshot
         ];
     };
