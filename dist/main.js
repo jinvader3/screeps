@@ -55,6 +55,7 @@ module.exports.loop = function () {
 
   let creep_deaths = [];
 
+  logging.info('creating rooms');
   for (let name in game.rooms()) {
     let room = game.rooms()[name];
     if (room.controller !== undefined && room.controller.my) {
@@ -64,6 +65,7 @@ module.exports.loop = function () {
     }
   }	
 
+  logging.info('clearing dead creep memory');
   for (let name in game.memory().creeps) {
     if (game.creeps()[name] === undefined) {
       let m = game.memory().creeps[name];
@@ -81,7 +83,36 @@ module.exports.loop = function () {
     }
   }
 
+  logging.info('clearing dead creep tasks');
+  const tasks = game.memory().tasks;
+  for (let name in tasks) {
+    // "root/room:<name>/creep:<name>"
+    const parts = name.split('/');
 
+    if (parts.length !== 3) {
+      continue;
+    }
+
+    if (parts[0] !== 'root') {
+      continue;
+    }
+
+    if (parts[1].indexOf('room:') !== 0) {
+      continue;
+    }
+
+    if (parts[2].indexOf('creep:') !== 0) {
+      continue;
+    }
+
+    const creep_name = parts[2].substr(parts[2].indexOf(':') + 1);
+    if (!(creep_name in game.creeps())) {
+      logging.debug(`removed task for ${creep_name}`);
+      delete tasks[name];
+    }
+  }
+
+  logging.info('adding creeps to rooms');
   for (let name in game.creeps()) {
 	  let creep = game.creeps()[name];
 
@@ -103,8 +134,8 @@ module.exports.loop = function () {
     }
 	}
 
+  logging.info('running rooms as tasks');
   let te = new TaskEngine();
-
   for (let rname in rooms) {
     let task = te.spawn(0, `room:${rname}`, task => {
       rooms[rname].tick(task);

@@ -77,6 +77,10 @@ class Room {
     return this.room.terminal;
   }
 
+  get_memory () {
+    return this.room.memory;
+  }
+
   get_controller () {
     return this.room.controller;
   }
@@ -654,7 +658,7 @@ class Room {
           }
           if (_.some(this.minerals, mineral => s.pos.isNearTo(mineral))) {
             this.containers_adj_mineral.push(s);
-            if (!this.container_evaluate_state(s, 500, 1500)) {
+            if (this.container_evaluate_state(s, 500, 1500)) {
               this.active_containers_adj_mineral.push(s);
             }
           }
@@ -677,7 +681,7 @@ class Room {
     // Quick and dirty tower code.
     this.hcreeps = this.room.find(game.FIND_HOSTILE_CREEPS);
     if (this.hcreeps.length > 0) {
-      let fhcreep = this.hcreeps[0];
+      let fhcreep = _.sample(this.hcreeps);
       _.each(this.towers, tower => tower.attack(fhcreep));
     }
 
@@ -755,16 +759,24 @@ class Room {
 
     let dt_push_hauler = [
       this.dt_cond(
-        () => this.creep_group_counts.worker > 0, 
+        () => this.hcreeps.length > 0,
         [
-          // Fill the storage until it hits 10k.
-          this.dt_push_storage(10000)
+          this.dt_push_to_objects_with_stores(1.0, this.towers),
         ],
+        [
+          this.dt_cond(
+            () => this.creep_group_counts.worker > 0, 
+            [
+              // Fill the storage until it hits 10k.
+              this.dt_push_storage(10000)
+            ],
+          ),
+          this.dt_push_to_objects_with_stores(1.0, this.spawns.concat(this.exts)),
+          this.dt_push_to_objects_with_stores(1.0, this.towers),
+          this.dt_push_to_objects_with_stores(1.0, this.active_containers_adj_controller),
+          this.dt_push_storage(100000),
+        ]
       ),
-      this.dt_push_to_objects_with_stores(1.0, this.spawns.concat(this.exts)),
-      this.dt_push_to_objects_with_stores(1.0, this.towers),
-      this.dt_push_to_objects_with_stores(1.0, this.active_containers_adj_controller),
-      this.dt_push_storage(100000),
     ];
 
     let lab_creeps = [];
@@ -836,7 +848,9 @@ class Room {
       let workers = this.group_count('worker');
       let haulers = this.group_count('hauler');
 
+      logging.debug(`thinking about emergency energy status workers=${workers} haulers=${haulers}`);
       if (workers === 0 && haulers === 0) {
+        logging.warn('Setting total room energy to 300 due to no workers or haulers being present.');
         room_energy = 300;
       }
 

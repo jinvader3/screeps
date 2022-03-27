@@ -33,11 +33,33 @@ class Terminal {
     this.term = room.get_terminal();
   }
 
+  make_plan_linear (plan, out, depth) {
+    out = out || [];
+    depth = depth || 0;
+    out.push([depth, plan.a, plan.b, plan.c]);
+  
+    if (plan.afp)
+      this.make_plan_linear(plan.afp, out, depth + 1);
+    if (plan.bfp)
+      this.make_plan_linear(plan.bfp, out, depth + 1);
+
+    if (depth === 0) {
+      // Sort the linear list so that the most basic components are first in line.
+      out.sort((a, b) => a[0] > b[0] ? -1 : 1);
+    }
+
+    return out;
+  }
+
   get_market_orders () {
     if (g_orders === null || (game.time() - g_orders_age > 20)) {
       g_orders = game.market().getAllOrders();
     }
     return g_orders;
+  }
+
+  force_orders_update () {
+    g_orders = null;
   }
 
   /// This will calculate all the possible trades using the known
@@ -171,6 +193,32 @@ class Terminal {
     console.log('test total cpu', tt);
 
     return w;
+  }
+
+  find_best_seller (product) {
+    let orders = this.get_market_orders();
+
+    orders = _.filter(
+      orders, 
+      order => order.type === game.ORDER_SELL && order.resourceType === product && order.amount > 0
+    );
+
+    orders.sort((a, b) => a.price > b.price ? 1 : -1);
+
+    return orders[0];
+  }
+
+  find_best_buyer (product) {
+    let orders = this.get_market_orders();
+
+    orders = _.filter(
+      orders, 
+      order => order.type === game.ORDER_BUY && order.resourceType === product && order.amount > 0
+    );
+
+    orders.sort((a, b) => a.price > b.price ? -1 : 1);
+
+    return orders[0];
   }
 
   find_product_supply_and_demand_of_batch (product, batch_size) {

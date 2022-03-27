@@ -154,6 +154,7 @@ class CreepGeneralWorker extends Creep {
       let amount = this.creep.store.getUsedCapacity(restype);
       let most = trgt.store.getFreeCapacity(restype);
       res = this.creep.transfer(trgt, restype, Math.min(amount, most));
+      logging.debug(`transfer = ${res}`);
       if (res === game.OK) {
         return { done: true, oneshot: true };
       }
@@ -171,8 +172,9 @@ class CreepGeneralWorker extends Creep {
       return { done: false, oneshot: true };
     }
 
-    if (res == game.ERR_NOT_IN_RANGE) {
+    if (res === game.ERR_NOT_IN_RANGE) {
       let res2 = this.move_to(trgt);
+      logging.debug(`moving to target ${trgt.id}`);
       return { done: true, oneshot: false };
     } 
 
@@ -182,13 +184,13 @@ class CreepGeneralWorker extends Creep {
   move_to (trgt) {
     return this.creep.moveTo(trgt, {
       maxRooms: 1,
-      costCallback: (room_name, cm) => {
+      /*costCallback: (room_name, cm) => {
         if (this.room.get_name() === room_name) {
           return this.room.scm;
         }
       
         return null;
-      },
+      },*/
       visualizePathStyle: {
         fill: 'transparent',
         stroke: '#ff9999',
@@ -214,6 +216,7 @@ class CreepGeneralWorker extends Creep {
 
     logging.debug(`trgt:${trgt}`);
     logging.debug(`ecarry:${ecarry} efree:${efree}`);
+    logging.debug(`mode=${this.get_mode()}`);
 
     if (!trgt.trgt) {
       let a = this.get_mode() === 'pull' && efree > 0;

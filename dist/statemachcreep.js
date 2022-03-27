@@ -11,14 +11,19 @@ class StateMachineCreep extends Creep {
     cm.ss_ids = cm.ss_ids || {};
     cm.ss = cm.ss || [];
 
+    this.dump_logging_info();
+  }
+
+  dump_logging_info () {
+    const cm = this.creep.memory;
     logging.debug(`I have ${cm.ss.length} states on my stack.`);
-    logging.debug(`I have ${cm.ss_ids.length} unique IDS on my stack.`);
+    logging.debug(`I have ${Object.keys(cm.ss_ids).length} unique IDS on my stack.`);
 
     for (let id in cm.ss_ids) {
       logging.debug(`ID:${id}`);
     }
 
-    for (let e in cm.ss) {
+    for (let e of cm.ss) {
       logging.debug(`entry fname:${e[0]} params:${e[1]} uid:${e[2]}`);
     }
   }
@@ -82,7 +87,11 @@ class StateMachineCreep extends Creep {
         return true;
       }
       let rtype = rtypes[0];
-      this.creep.transfer(stor, rtype, this.creep.store.getUsedCapacity(rtype));
+      let res = this.creep.transfer(stor, rtype, this.creep.store.getUsedCapacity(rtype));
+      if (res !== game.OK) {
+        // There is a problem. Just abort.
+        return true;
+      }
     } else {
       // We must move closer to the storage.
       this.move_to(stor);
@@ -91,6 +100,36 @@ class StateMachineCreep extends Creep {
 
   stmh_dump_store_to_object (ss, obj) {
     ss.push(['stmhf_dump_store_to_object', { id: obj.id || obj }, null]);
+  }
+
+  stmhf_load_resource_from_store (params) {
+    const stor = game.getObjectById()(params.id);
+
+    if (!stor) {
+      // A storage does not exist in the room.
+      return true;
+    }
+
+    if (this.creep.pos.isNearTo(stor)) {
+      let rtype = params.rtype;
+      let creep_free = this.creep.store.getFreeCapacity(rtype);
+      let stor_used = stor.store.getUsedCapacity(rtype);
+      let amount = Math.min(creep_free, stor_used);
+      if (amount <= 0) {
+        return true;
+      }
+      this.creep.withdraw(stor, rtype, amount);
+    } else {
+      // We must move closer to the storage.
+      this.move_to(stor);
+    }
+  }
+
+  stmh_load_resource_from_store (ss, obj, rtype) {
+    ss.push(['stmhf_load_resource_from_store', { 
+      id: obj.id || obj,
+      rtype: rtype,
+    }]);
   }
 
   stmhf_load_all_from_store (params) {
