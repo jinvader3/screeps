@@ -3,7 +3,7 @@ const _ = game._;
 
 class Stats { 
   constructor (stats_prefix) {
-    this.trim_stats(3000);
+    this.trim_stats(300);
     this.stats_prefix = stats_prefix
   }
 

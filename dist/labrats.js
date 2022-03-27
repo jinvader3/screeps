@@ -356,6 +356,8 @@ class LabManager {
   }
 
   tick (task, creeps, labs, extractors) {
+    return;
+
     function *labrat_extractor_bf() {
       let body = []
       body.push(game.MOVE);

@@ -47,6 +47,7 @@ if (global['Game'] !== undefined) {
     ERR_NOT_ENOUGH_RESOURCES: ERR_NOT_ENOUGH_RESOURCES,
     ERR_FULL: ERR_FULL,
     ERR_NO_BODYPART: ERR_NO_BODYPART,
+    ERR_NO_PATH: ERR_NO_PATH,
     OK: OK,
     rooms: () => Game.rooms,
     creeps: () => Game.creeps,
@@ -69,6 +70,7 @@ if (global['Game'] !== undefined) {
     ORDER_SELL: ORDER_SELL,
     ORDER_BUY: ORDER_BUY,
     market: () => Game.market,
+    shard: () => Game.shard,
     RoomVisual: RoomVisual,
     path_finder: () => PathFinder,
   };

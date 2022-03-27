@@ -112,8 +112,8 @@ class Task {
       stats.record_stat('charge.' + this.get_full_name(), dt);
       return null;
     } catch (err) {
-      console.log(`[error] ${err}`);
-      console.log(`${err.stack}`);
+      logging.log(`[error] ${err}`);
+      logging.log(`${err.stack}`);
       return err;
     }
   }

@@ -719,7 +719,7 @@ class Room {
       this.dt_pull_storage(),
       this.dt_pull_energy_nearby_sources(),
       this.dt_pull_energy_containers_nearby_sources(),
-      this.dt_pull_sources(),
+      this.dt_pull_sources(true),
     ];
 
     let dt_hauler_pull = [

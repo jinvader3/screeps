@@ -4,20 +4,27 @@ const { Room } = require('./room');
 const { TaskEngine } = require('./task');
 const { Stats } = require('./stats');
 const { logging } = require('./logging');
+const { guimenu } = require('./guimenu');
 
 module.exports.rooms = {};
 
 module.exports.loop = function () {
+  if (game.shard === undefined || game.shard().name !== 'shard3') {
+    return;
+  }
+
   let rooms = {};
   module.exports.rooms = rooms;
 
   let extra_config = {
     'E57S33': {
+        /*
         claimteam: [
           {
             tr: 'E59S32',
           },
-        ], 
+        ],
+        */ 
         /*'warfare_small': [
           {
             uid: 'ironspear',
@@ -155,10 +162,7 @@ module.exports.loop = function () {
 
   stats.record_stat('cpu.bucket', game.cpu().bucket);
   stats.record_stat('cpu.used', game.cpu().getUsed());
- 
+
   return res;
 }
-
-
-
 

@@ -6,7 +6,7 @@ class Logging {
   debug () {
     let args = [];
     if (this.groups.length > 0) {
-      args.push(`>>?${this.groups.join('/')}`);
+      args.push(`<span style="color: #99ff99;">${this.groups.join('/')}</span>`);
     }
 
     for (let x = 0; x < arguments.length; ++x) {
@@ -18,7 +18,7 @@ class Logging {
   info () {
     let args = [];
     if (this.groups.length > 0) {
-      args.push(`>>@${this.groups.join('/')}`);
+      args.push(`${this.groups.join('/')}`);
     }
 
     for (let x = 0; x < arguments.length; ++x) {
@@ -30,7 +30,7 @@ class Logging {
   warn () {
     let args = [];
     if (this.groups.length > 0) {
-      args.push(`>>!${this.groups.join('/')}`);
+      args.push(`<span style="color: #ff9999;">${this.groups.join('/')}</span>`);
     }
 
     for (let x = 0; x < arguments.length; ++x) {
