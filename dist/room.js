@@ -29,10 +29,12 @@ class Room {
     this.spawnman = new SpawnManager();
     this.stats = new Stats();
     this.pathman = new PathManager(this);
-    // A smoothed cost map which looks like a gravity well around all the structures. This
-    // is supposed to keep the path finding using the least amount of CPU possible.
+    // A smoothed cost map which looks like a gravity well around all 
+    // the structures. This is supposed to keep the path finding using
+    // the least amount of CPU possible.
     this._scm = null;   // This is the original.
-    this.scm = null;    // This has creep positions added or other dynamic per tick things.
+    this.scm = null;    // This has creep positions added 
+                        // or other dynamic per tick things.
   }
 
   record_stat (key, value) {
@@ -537,13 +539,28 @@ class Room {
       {}
     );
 
+    let hauler_count = 1;
+
+        
+
+    if (_.sum(
+      this.denergy, 
+      de => de.resourceType === game.RESOURCE_ENERGY ? de.amount : 0
+    ) > 200) {
+      // If there is too much dropped resources then maybe the miners
+      // are out digging the creeps or something is happening and requires
+      // extra hauling help.
+      hauler_count = 2;
+      logging.info('There is too much dropped energy. Increasing needed hauler count from 1 to 2.');
+    }
+
     this.spawnman.reg_build(
       'gw',
       'hauler',
       hauler_bf,
       18,
       1,
-      1,
+      hauler_count,
       {}
     );
 
@@ -690,6 +707,9 @@ class Room {
     let denergy = _.filter(this.room.find(game.FIND_DROPPED_RESOURCES), 
       i => i.resourceType === game.RESOURCE_ENERGY
     );
+
+    // Make it avaliable to other methods of the room class.
+    this.denergy = denergy;
 
     let sources_and_denergy = [];
     _.each(this.sources, source => sources_and_denergy.push(source));
