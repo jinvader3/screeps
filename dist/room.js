@@ -551,7 +551,32 @@ class Room {
     let stor_energy_amount = this.get_storage() ? this.get_storage().store.getUsedCapacity(game.RESOURCE_ENERGY) : 0;
     let srcs_count = this.sources.length;
 
-    let upgrader_level = Math.floor((stor_energy_amount / 10000) * 5) * srcs_count;
+    let upgrader_level;
+
+    // The rationale here is that our logic is simple for
+    // feeding the upgrader. It might be or it might not
+    // be because the logic is in the hauler and upgrader
+    // itself. So, what we are doing here is throttling
+    // the upgrader based on avaliable energy in storage
+    // and the number of construction sites. I likely had
+    // an upgrader starve the room of energy by upgrading
+    // too hard and this was my solution. It does make sense
+    // here as a failsafe but logic elsewhere could be 
+    // more important such as simply not ticking the upgrader.
+    // TODO: Consider just not ticking the upgrader but then
+    //       consider it was a waste to build him? Which is
+    //       the best place.
+    if (stor_energy_amount > 0) {
+      upgrader_level = Math.floor(
+        (stor_energy_amount / 10000) * 5
+      ) * srcs_count;
+    } else {
+      if (this.csites.length === 0) {
+        upgrader_level = 20;
+      } else {
+        upgrader_level = 1;
+      }
+    }
     
     this.spawnman.reg_build(
       'upgrader',
@@ -598,11 +623,6 @@ class Room {
     this.spawns = this.room.find(game.FIND_MY_SPAWNS);
     this.sources = this.room.find(game.FIND_SOURCES); 
  
-    // Do all the housework that requires a spawn here.
-    if (this.spawns.length > 0) {
-      this.tick_need_spawn();
-    }
-
     this.exts = [];
     this.towers = [];
     this.structs = [];
@@ -685,7 +705,12 @@ class Room {
       _.each(this.towers, tower => tower.attack(fhcreep));
     }
 
-    
+    // Do all the housework that requires a spawn here.
+    if (this.spawns.length > 0) {
+      this.tick_need_spawn();
+    }
+
+ 
     // This is the decision tree for energy pushes. Where do I take
     // the energy to?
     let dt_push = [
