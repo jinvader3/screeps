@@ -26,6 +26,21 @@ The industry is currently implemented but only supports three labs. It will be t
 
 _I currently have it coded to build things at a small loss in credits!_
 
+#### Decision Tree Versus State Machine Creep Versus General Worker
+
+For some clarification of:
+  - `statemachinecreep.js` module
+  - `creepgw.js` module
+  - `room.js`'s dt_ functions
+
+The `creepgw.js` module just implements a basic go put something here or get somethign from there autonomy for a creep. It allows a fire and forget approach for which the creep will accomplish some of the most basic tasks until completed _or attempted at least once with a oneshot flag set_.
+
+The decision tree logic is implemented in `room.js` under the `dt_*` family of functions for which `creepgw` (general worker) creep recives two functions and calling either one presents a target. Therefore, the general worker creep does not know or udnerstand decision trees as they are purely a concept and feature of the room planner itself. The general worker only understands targets and actions it should go and perform until exhausted or energy or full of energy.
+
+The `statemachinecreep.js` module builds a creep that can be issues multiple orders for which these are accomplished in the order they were given. This is important because for industry work a complete whole operation might consist of moving a few things to different places and it is a lot easier to issue all these separate instructions and have them executed autonomously than poll each tick, using a general worker, and check if it has finished. However, it is possible I could have used a general worker under the hood! I am not sure the best way.
+
+_The statemachinecreep is relatively new. I am still trying to flush out the exact way it will work._ 
+
 #### What is a room crash?
 
 If you don't know. A room crash isn't just when the code fails with an error or does not execute. It also involves failure of the room to reach its objective. A good example of a room crash that may not be obvious is when all the creeps happen to die because the spawner couldn't replace them fast enough. This is in effect almost the same as if the A.I./script simply stopped running for some amount of time- thus I call it a crash.
