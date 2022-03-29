@@ -81,13 +81,19 @@ class StateMachineCreep extends Creep {
 
     if (this.creep.pos.isNearTo(stor)) {
       let rtypes = Object.keys(this.creep.store);
+      
       if (rtypes.length === 0) {
         logging.debug('There is nothing left to transfer.');
         // There is nothing left to transfer.
         return true;
       }
+      
       let rtype = rtypes[0];
-      let res = this.creep.transfer(stor, rtype, this.creep.store.getUsedCapacity(rtype));
+      
+      let res = this.creep.transfer(
+        stor, rtype, this.creep.store.getUsedCapacity(rtype)
+      );
+      
       if (res !== game.OK) {
         // There is a problem. Just abort.
         return true;

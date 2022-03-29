@@ -398,8 +398,16 @@ class Room {
 
       _.each(this.ecfg.claimteam, op => {
         let trobj = game.rooms()[op.tr];
-        let tr_has_no_spawn = trobj && trobj.find(game.FIND_MY_SPAWNS).length === 0;
-        let tr_my_controller = trobj && trobj.controller && trobj.controller.my;
+        let tr_has_no_spawn;
+        let tr_my_controller;
+
+        if (trobj) {
+          tr_has_no_spawn = trobj && trobj.find(game.FIND_MY_SPAWNS).length === 0;
+          tr_my_controller = trobj && trobj.controller && trobj.controller.my;
+        } else {
+          tr_has_no_spawn = true;
+          tr_my_controller = false;
+        }
 
         if (!trobj || !tr_my_controller) {
           console.log('registered to build claimer [claim style]');
@@ -540,8 +548,6 @@ class Room {
     );
 
     let hauler_count = 1;
-
-        
 
     if (_.sum(
       this.denergy, 
@@ -720,8 +726,15 @@ class Room {
 
     // Quick and dirty tower code.
     this.hcreeps = this.room.find(game.FIND_HOSTILE_CREEPS);
-    if (this.hcreeps.length > 0) {
-      let fhcreep = _.sample(this.hcreeps);
+    let valid_hcreeps = _.filter(this.hcreeps, hcreep => {
+      if (hcreep.owner.username === 'Harlem') {
+        return false;
+      }
+      return true;
+    });
+
+    if (valid_hcreeps.length > 0) {
+      let fhcreep = _.sample(valid_hcreeps);
       _.each(this.towers, tower => tower.attack(fhcreep));
     }
 

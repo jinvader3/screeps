@@ -17,22 +17,21 @@ module.exports.loop = function () {
   module.exports.rooms = rooms;
 
   let extra_config = {
-    'E57S33': {
-        /*
+    'W24S41': {
         claimteam: [
           {
-            tr: 'E59S32',
+            tr: 'W24S38',
           },
-        ],
-        */ 
-        /*'warfare_small': [
+        ], 
+        warfare_small: [
           {
             uid: 'ironspear',
-            room: 'E59S33',
+            room: 'W24S38',
             max_level: 6,
             count: 1,
           },
         ],
+        /*
         'remote_sources': [
           {
             uid: 'apple',
