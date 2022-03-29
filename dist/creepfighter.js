@@ -36,7 +36,7 @@ class CreepFighter extends Creep {
     }
 
     let hstructs = game.rooms()[this.creep.pos.roomName].find(
-      game.FIND_STRUCTURES
+      game.FIND_HOSTILE_STRUCTURES
     );
 
     nearest = this.creep.pos.findClosestByPath(hstructs);
