@@ -62,14 +62,16 @@ class CreepClaimer extends Creep {
       let dy = csite_spawn.pos.y - this.creep.pos.y;
       let dist = Math.sqrt(dx * dx + dy * dy);
 
-      if (dist < 1.1) {
+      if (dist < 1.5) {
         if (this.creep.store.getUsedCapacity(game.RESOURCE_ENERGY) === 0) {
           this.creep.moveTo(source);
         } else {
           this.creep.build(csite_spawn);
         }
       } else {
+        logging.debug('dist >= 1.1');
         if (this.creep.store.getFreeCapacity(game.RESOURCE_ENERGY) === 0) {
+          logging.debug('moving to csite_spawn');
           this.creep.moveTo(csite_spawn);
         } else {
           if (this.creep.harvest(source) === game.ERR_NOT_IN_RANGE) {
@@ -77,8 +79,7 @@ class CreepClaimer extends Creep {
           }
         }
       }
-
-      this.creep.build(csite_spawn)
+      //this.creep.build(csite_spawn)
     } else {
       // Randomly place a new construction site near a source.
       let x = source.pos.x;
