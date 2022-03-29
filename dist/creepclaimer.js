@@ -54,7 +54,9 @@ class CreepClaimer extends Creep {
       csites, csite => csite.structureType === game.STRUCTURE_SPAWN
     );
 
-    let source = croom.find(game.FIND_SOURCES)[0];
+    let crid = parseInt(this.creep.id.substr(-1), 16);
+    let sources = croom.find(game.FIND_SOURCES);
+    let source = sources[crid % sources.length];
 
     // Build the existing construction site.
     if (csite_spawn) {
