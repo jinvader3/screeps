@@ -121,6 +121,14 @@ class CreepGeneralWorker extends Creep {
     if (trgt.hits !== undefined && trgt.hits < trgt.hitsMax) {
       res = this.creep.repair(trgt);
 
+      if (res == game.ERR_NOT_IN_RANGE) {
+        let res2 = this.move_to(trgt);
+        if (res2 === game.ERR_NO_PATH) {
+          return { done: false, oneshot: true };
+        }
+        return { done: true, oneshot: false };
+      }
+
       if (res === game.OK) {
         return { done: true, oneshot: true };
       }
