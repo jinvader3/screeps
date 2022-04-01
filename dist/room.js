@@ -418,7 +418,7 @@ class Room {
             `claimer_${op.tr}`,
             claimteam_bf,
             // The max level.
-            10,
+            1,
             // The priority.
             5,
             // The count.
@@ -441,7 +441,7 @@ class Room {
               `claimer_${op.tr}`,
               claimteam_builders_bf,
               // The max level.
-              10,
+              40,
               // The priority.
               5,
               // The count.
