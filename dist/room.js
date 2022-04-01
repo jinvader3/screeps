@@ -279,7 +279,7 @@ class Room {
 
     let roomEnergy = this.room.energyCapacityAvailable;
     if (creep_group_counts.worker === 0 && creep_group_counts.hauler === 0) {
-      console.log(`emergency room energy levels set for room ${this.room.name}`);
+      logging.warn(`emergency room energy levels set for room ${this.room.name}`);
       roomEnergy = 300;
     }
     
@@ -410,7 +410,7 @@ class Room {
         }
 
         if (!trobj || !tr_my_controller) {
-          console.log('registered to build claimer [claim style]');
+          logging.log('registered to build claimer [claim style]');
           this.spawnman.reg_build(
             // The creep class/clazz.
             'claimer',
@@ -427,6 +427,8 @@ class Room {
             {
               // The target room.
               tr: op.tr,
+              // The allowable rooms or undefined for allow all.
+              ar: op.ar,
             }
           );
         } else {

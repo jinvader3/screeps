@@ -59,10 +59,12 @@ class CreepGeneralWorker extends Creep {
   }
 
   get (trgt, restype) {
+    // NO SPACE
     if (this.creep.store.getFreeCapacity(restype) === 0) {
       return { done: false, oneshot: true };
     }
 
+    // TRY TO PICK IT UP
     let res = this.creep.pickup(trgt);
 
     if (res === game.OK) {
@@ -84,6 +86,7 @@ class CreepGeneralWorker extends Creep {
       return { done: false, oneshot: true };
     }
     
+    // TRY TO WITHDRAW IT
     if (res === game.ERR_INVALID_TARGET || res === game.ERR_NO_BODYPART) {
       let creep_cap = this.creep.store.getFreeCapacity(restype);
       let trgt_cap = trgt.store.getUsedCapacity(restype);
@@ -92,10 +95,12 @@ class CreepGeneralWorker extends Creep {
       );
     }
 
+    // IF WE ARE FULL OR IT CONTAINS TOO FEW RESOURCES
     if (res === game.ERR_FULL || res === game.ERR_NOT_ENOUGH_RESOURCES) {
       return { done: false, oneshot: true };
     }
 
+    // IF WE ARE NOT IN RANGE.
     if (res == game.ERR_NOT_IN_RANGE) {
       let res2 = this.move_to(trgt);
       if (res2 === game.ERR_NO_PATH) {
@@ -108,14 +113,19 @@ class CreepGeneralWorker extends Creep {
   }
 
   put (trgt, restype) {
+    // NO TARGET
     if (!trgt) {
       return { done: false, oneshot: true };
     }
 
+    // NO RESOURCES
     if (this.creep.store.getUsedCapacity(restype) === 0) {
       return { done: false, oneshot: true };
     }
 
+    /////////////////////////////////////////////////
+    // REPAIR
+    /////////////////////////////////////////////////
     let res;
 
     if (trgt.hits !== undefined && trgt.hits < trgt.hitsMax) {
@@ -139,8 +149,19 @@ class CreepGeneralWorker extends Creep {
     } else {
       res = game.ERR_INVALID_TARGET;
     }
-
+    
+    /////////////////////////////////////////////////
+    // UPGRADE
+    /////////////////////////////////////////////////
     res = this.creep.upgradeController(trgt);
+    
+    if (res == game.ERR_NOT_IN_RANGE) {
+      let res2 = this.move_to(trgt);
+      if (res2 === game.ERR_NO_PATH) {
+        return { done: false, oneshot: true };
+      }
+      return { done: true, oneshot: false };
+    }
 
     if (res === game.OK) {
       return { done: true, oneshot: true };
@@ -161,6 +182,7 @@ class CreepGeneralWorker extends Creep {
       return { done: false, oneshot: true };
     }
 
+    // IF UPGRADE AND BUILD HAVE FAILED AND THE TARGET HAS A STORAGE.
     if (trgt.store && (res === game.ERR_INVALID_TARGET || res === game.ERR_NO_BODYPART)) {
       let amount = this.creep.store.getUsedCapacity(restype);
       let most = trgt.store.getFreeCapacity(restype);

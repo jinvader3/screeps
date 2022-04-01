@@ -13,7 +13,23 @@ class CreepClaimer extends Creep {
   }
 
   travel_to_target_room () {
-    this.creep.moveTo(new RoomPosition(25, 25, this.creep.memory.tr));
+    this.creep.moveTo(
+      new RoomPosition(25, 25, this.creep.memory.tr),
+      { 
+        reusePath: 20,
+        costCallback: (room_name, cm) => {
+          if (this.creep.memory.ar === undefined) {
+            return cm;
+          }
+
+          if (_.some(this.creep.memory.ar, name => room_name === name)) {
+            return cm;
+          }
+
+          return null;
+        },
+      }
+    );
   }
 
   tick () {
@@ -74,10 +90,10 @@ class CreepClaimer extends Creep {
         logging.debug('dist >= 1.1');
         if (this.creep.store.getFreeCapacity(game.RESOURCE_ENERGY) === 0) {
           logging.debug('moving to csite_spawn');
-          this.creep.moveTo(csite_spawn);
+          this.creep.moveTo(csite_spawn, { reusePath: 20 });
         } else {
           if (this.creep.harvest(source) === game.ERR_NOT_IN_RANGE) {
-            this.creep.moveTo(source);
+            this.creep.moveTo(source, { reusePath: 20 });
           }
         }
       }
@@ -110,14 +126,14 @@ class CreepClaimer extends Creep {
       let res = this.creep.claimController(croom.controller);
       logging.log(`claimController = ${res}`);
       if (res === ERR_NOT_IN_RANGE) {
-        this.creep.moveTo(croom.controller);
+        this.creep.moveTo(croom.controller, { reusePath: 20 });
       }
     } else {
       if (!croom.controller.my) {
         let res = this.creep.attackController(croom.controller);
         logging.log(`attackController = ${res}`);
         if (res === ERR_NOT_IN_RANGE) {
-          this.creep.moveTo(croom.controller);
+          this.creep.moveTo(croom.controller, { reusePath: 20 });
         }
       }
     }
