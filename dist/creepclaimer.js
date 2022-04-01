@@ -19,14 +19,23 @@ class CreepClaimer extends Creep {
         reusePath: 20,
         costCallback: (room_name, cm) => {
           if (this.creep.memory.ar === undefined) {
+            logging.log('using all rooms');
             return cm;
           }
 
           if (_.some(this.creep.memory.ar, name => room_name === name)) {
+            logging.log(`using room ${room_name}`);
             return cm;
           }
 
-          return null;
+          logging.log(`avoiding room ${room_name}`);
+          cm = new PathFinder.CostMatrix();
+          for (let x = 0; x < 50; ++x) {
+            for (let y = 0; y < 50; ++y) {
+              cm.set(x, y, 255);
+            }
+          }
+          return cm;
         },
       }
     );
