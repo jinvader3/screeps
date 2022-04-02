@@ -120,11 +120,6 @@ module.exports.loop = function () {
     console.log(stat[0], stat[1]);
   });  
 
-  let stats = new Stats();
-
-  stats.record_stat('cpu.bucket', game.cpu().bucket);
-  stats.record_stat('cpu.used', game.cpu().getUsed());
-
   return res;
 }
 
