@@ -85,6 +85,16 @@ class CreepClaimer extends Creep {
 
     // Build the existing construction site.
     if (csite_spawn) {
+      if (this.creep.pos.getRangeTo(source) === 1 &&
+          this.creep.pos.getRangeTo(csite_spawn) === 1) {
+          if (this.creep.store.getUsedCapacity(game.RESOURCE_ENERGY) === 0) {
+            this.creep.harvest(source);
+          } else {
+            this.creep.build(csite_spawn);
+          }
+          return;
+      }
+
       let dx = csite_spawn.pos.x - this.creep.pos.x;
       let dy = csite_spawn.pos.y - this.creep.pos.y;
       let dist = Math.sqrt(dx * dx + dy * dy);
@@ -109,14 +119,13 @@ class CreepClaimer extends Creep {
       //this.creep.build(csite_spawn)
     } else {
       // Randomly place a new construction site near a source.
-      let x = source.pos.x;
-      let y = source.pos.y;
-      x += Math.floor(Math.random() * 5);
-      y += Math.floor(Math.random() * 5);
-
-      let res = croom.createConstructionSite(
-        x, y, game.STRUCTURE_SPAWN
-      );
+      //let x = source.pos.x;
+      //let y = source.pos.y;
+      //x += Math.floor(Math.random() * 5);
+      //y += Math.floor(Math.random() * 5);
+      //let res = croom.createConstructionSite(
+      //  x, y, game.STRUCTURE_SPAWN
+      //);
     }
   }
 
