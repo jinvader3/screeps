@@ -552,7 +552,7 @@ class Room {
     let hauler_count = 1;
 
     if (_.sum(
-      this.denergy, 
+      this.denergy_near_sources,
       de => de.resourceType === game.RESOURCE_ENERGY ? de.amount : 0
     ) > 200) {
       // If there is too much dropped resources then maybe the miners
@@ -666,6 +666,21 @@ class Room {
     this.extractors = [];
     this.minerals = this.room.find(game.FIND_MINERALS);
 
+    let denergy = _.filter(this.room.find(game.FIND_DROPPED_RESOURCES), 
+      i => i.resourceType === game.RESOURCE_ENERGY
+    );
+    this.denergy = denergy;
+
+    // Make a list of energy dropped adjacent to sources.
+    this.denergy_near_sources = []
+    _.each(this.sources, source => {
+      _.each(this.denergy, de => {
+        if (de.pos.getRangeTo(source) < 1.5) {
+          this.denergy_near_sources.push(de);
+        }
+      });
+    });
+
     _.each(this.room.find(game.FIND_STRUCTURES), s => {
       this.structs.push(s);
       switch (s.structureType) {
@@ -712,13 +727,6 @@ class Room {
     });
 
     this.csites = this.room.find(game.FIND_CONSTRUCTION_SITES);
-    let denergy = _.filter(this.room.find(game.FIND_DROPPED_RESOURCES), 
-      i => i.resourceType === game.RESOURCE_ENERGY
-    );
-
-    // Make it avaliable to other methods of the room class.
-    this.denergy = denergy;
-
     let sources_and_denergy = [];
     _.each(this.sources, source => sources_and_denergy.push(source));
     _.each(denergy, i => sources_and_denergy.push(i));
