@@ -703,8 +703,9 @@ class Room {
 
     // Quick and dirty tower code.
     this.hcreeps = this.room.find(game.FIND_HOSTILE_CREEPS);
+    this.ecfg.ally = this.ecfg.ally || {};
     let valid_hcreeps = _.filter(this.hcreeps, hcreep => {
-      if (ecfg.ally[hcreep.owner.username] !== undefined) {
+      if (this.ecfg.ally[hcreep.owner.username] !== undefined) {
         return false;
       }
       return true;
