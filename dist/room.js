@@ -13,6 +13,7 @@ const { Stats } = require('./stats');
 const { CreepLabRat, LabManager } = require('./labrats');
 const { PathManager } = require('./path');
 const { logging } = require('./logging');
+const AutoBuild = require('./autobuild');
 
 class Room {
   constructor (room, ecfg) {
@@ -649,6 +650,7 @@ class Room {
     this.spawns = this.room.find(game.FIND_MY_SPAWNS);
     this.sources = this.room.find(game.FIND_SOURCES); 
  
+    this.terrain = this.room.getTerrain();
     this.exts = [];
     this.towers = [];
     this.structs = [];
@@ -911,6 +913,14 @@ class Room {
     });
 
     task.transfer(lab_task, 1, 5);
+
+    if (this.ecfg.autobuild) {
+      let abtask = task.spawn_isolated(-40, 'autobuild', ctask => {
+        AutoBuild.tick(this);
+      });
+      
+      task.transfer(abtask, 1, 5);
+    }
 
     task.spawn(100, `spawnman`, ctask => {
       let room_energy = this.room.energyCapacityAvailable;
