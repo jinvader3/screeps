@@ -177,16 +177,6 @@ class Room {
     this.hook_creep_method(creep, 'withdraw', 'st_wt');
     this.hook_creep_method(creep, 'transfer', 'st_xf');
 
-    /*
-    if (game.RoomVisual) {
-      const cm = creep.memory;
-      const score = (cm.st_hr || 0) + (cm.st_up || 0) + 
-                    (cm.st_rp || 0) + (cm.st_xf || 0);
-      let rv = new game.RoomVisual(creep.pos.roomName);
-      rv.text(`${score}`, creep.pos.x, creep.pos.y);
-    }
-    */
-
     switch (creep.memory.c) {
       case 'gw': 
         this.creeps.push(new CreepGeneralWorker(this, creep));
@@ -242,32 +232,6 @@ class Room {
       return creep_group_counts[gname] || 0;
     }
     
-    ////////////////////////////////////////////////////////////
-    let cur_opto_cycle = game.time() >> 11;
-    this.room.memory.opto = this.room.memory.opto || {};
-    let opto = this.room.memory.opto;
-    if (cur_opto_cycle !== opto.cycle) {
-      // Save previous heuristic. This should over time reflect
-      // the direction needed to improve performance.
-      opto.history = opto.history || [];
-      if (opto.worker_level_adj !== undefined) {
-        opto.history.push({
-          control: opto.energy_spent_control,
-          worker_level_adj: opto.worker_level_adj,
-          hauler_level_adj: opto.hauler_level_adj
-        });
-      }
-      // Start a new cycle with a random offset.
-      opto.cycle = cur_opto_cycle;
-      // Generate new random multi-dimensional variable offset.
-      opto.worker_level_adj = 
-        -Math.round(Math.random() * 4);
-      opto.hauler_level_adj =
-        -Math.round(Math.random() * 4);
-      opto.energy_spent_control = 0;
-    }
-    ////////////////////////////////////////////////////////////
-
     _.each(this.creeps, creep => {
       if (creep.creep.memory === undefined) {
         return;
@@ -914,7 +878,7 @@ class Room {
 
     task.transfer(lab_task, 1, 5);
 
-    if (this.ecfg.autobuild) {
+    if (this.ecfg.autobuild && (game.time() % 10 === 0)) {
       let abtask = task.spawn_isolated(-40, 'autobuild', ctask => {
         AutoBuild.tick(this);
       });
