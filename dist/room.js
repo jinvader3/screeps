@@ -433,7 +433,7 @@ class Room {
           );
         } else {
           if (tr_has_no_spawn) {
-            console.log('registered to build claimer [build style]');
+            logging.log('registered to build claimer [build style]');
             this.spawnman.reg_build(
               // The creep class/clazz.
               'claimer',
@@ -450,6 +450,7 @@ class Room {
               {
                 // The target room.
                 tr: op.tr,
+                ar: op.ar,
               }
             );            
           }
@@ -737,7 +738,7 @@ class Room {
     // Quick and dirty tower code.
     this.hcreeps = this.room.find(game.FIND_HOSTILE_CREEPS);
     let valid_hcreeps = _.filter(this.hcreeps, hcreep => {
-      if (hcreep.owner.username === 'Harlem') {
+      if (ecfg.ally[hcreep.owner.username] !== undefined) {
         return false;
       }
       return true;
