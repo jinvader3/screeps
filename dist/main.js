@@ -7,12 +7,19 @@ const { logging } = require('./logging');
 const { guimenu } = require('./guimenu');
 const cmds = require('./cmds');
 
+// Harlem's communication module. It registers global variables.
+//require('communication.player');
+
 module.exports.rooms = {};
 
 module.exports.loop = function () {
   if (game.shard === undefined || game.shard().name !== 'shard3') {
     return;
   }
+
+  //MESSENGER.run('JeffRedbeard', [
+  //  'Harlem', 'Balthael', 'Aethercyn'
+  //]);
 
   cmds.register();
 
@@ -106,12 +113,14 @@ module.exports.loop = function () {
   logging.info('running rooms as tasks');
   let te = new TaskEngine();
   for (let rname in rooms) {
+    logging.info(`creating task for room ${rname}`); 
     let task = te.spawn(0, `room:${rname}`, task => {
+      logging.info(`task calling tick for room ${rname}`);
       rooms[rname].tick(task);
     });
 
-    // Each tick give 4 CPU and a bucket maximum of 10 CPU.
-    task.credit(7, 10);
+    // Each tick give 3 CPU with 20 CPU bucket.
+    task.credit(3, 20);
   }
 
   let res = te.run_tasks();
@@ -119,6 +128,13 @@ module.exports.loop = function () {
   _.each(res, stat => {
     console.log(stat[0], stat[1]);
   });  
+
+  Memory.cpuhis = Memory.cpuhis || [];
+  Memory.cpuhis.push(Game.cpu.getUsed());
+
+  while (Memory.cpuhis.length > 100) {
+    Memory.cpuhis.pop(0);
+  }
 
   return res;
 }
