@@ -16,7 +16,7 @@ const { logging } = require('./logging');
 const AutoBuild = require('./autobuild');
 
 class Room {
-  constructor (room, ecfg) {
+  constructor (room, gecfg, ecfg) {
     this.room = room;
     this.creeps = [];
     this.room.memory.mi = this.room.memory.mi || {};
@@ -26,6 +26,7 @@ class Room {
     this.breq = [];
     this.room.memory.res_xfer_intents = this.room.memory.res_xfer_intents || [];
     this.res_xfer_intents = this.room.memory.res_xfer_intents;
+    this.gecfg = gecfg;
     this.ecfg = ecfg;
     this.spawnman = new SpawnManager();
     this.stats = new Stats();
@@ -703,9 +704,8 @@ class Room {
 
     // Quick and dirty tower code.
     this.hcreeps = this.room.find(game.FIND_HOSTILE_CREEPS);
-    this.ecfg.ally = this.ecfg.ally || {};
     let valid_hcreeps = _.filter(this.hcreeps, hcreep => {
-      if (this.ecfg.ally[hcreep.owner.username] !== undefined) {
+      if (this.gecfg.ally[hcreep.owner.username] !== undefined) {
         return false;
       }
       return true;

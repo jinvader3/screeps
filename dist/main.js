@@ -8,7 +8,7 @@ const { guimenu } = require('./guimenu');
 const cmds = require('./cmds');
 
 // Harlem's communication module. It registers global variables.
-//require('communication.player');
+require('communication.player');
 
 module.exports.rooms = {};
 
@@ -17,9 +17,9 @@ module.exports.loop = function () {
     return;
   }
 
-  //MESSENGER.run('JeffRedbeard', [
-  //  'Harlem', 'Balthael', 'Aethercyn'
-  //]);
+  MESSENGER.run('JeffRedbeard', [
+    'Harlem', 'Balthael', 'Aethercyn'
+  ]);
 
   cmds.register();
 
@@ -34,9 +34,14 @@ module.exports.loop = function () {
   logging.info('creating rooms');
   for (let name in game.rooms()) {
     let room = game.rooms()[name];
+    // Only if we have a controller and the controller is ours.
     if (room.controller !== undefined && room.controller.my) {
-      //console.log('@room obj made', name);
-      let robj = new Room(room, ecfg[name] || {});
+      ecfg[name] = ecfg[name] || {};
+      let robj = new Room(
+        room,           // room object
+        ecfg,           // global configuration
+        ecfg[name]      // configuration per room
+      );
       rooms[name] = robj;
     }
   }	
