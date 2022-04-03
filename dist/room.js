@@ -741,7 +741,7 @@ class Room {
           return false;
         },
         [
-          this.dt_repair(0.5),
+          this.dt_repair_non_wall(0.5),
           this.dt_push_nearest_csite(),
           this.dt_push_to_objects_with_stores(
             1.0, this.active_containers_adj_controller 
@@ -877,14 +877,14 @@ class Room {
       labman.tick(ctask, lab_creeps, this.labs, this.extractors);
     });
 
-    task.transfer(lab_task, 1, 5);
+    task.transfer(lab_task, 0.2, 5);
 
-    if (this.ecfg.autobuild && (game.time() % 10 === 0)) {
+    if (this.ecfg.autobuild && (game.time() % 1 === 0)) {
       let abtask = task.spawn_isolated(-40, 'autobuild', ctask => {
         AutoBuild.tick(this);
       });
       
-      task.transfer(abtask, 1, 5);
+      task.transfer(abtask, 0.2, 1);
     }
 
     task.spawn(100, `spawnman`, ctask => {
@@ -1025,7 +1025,22 @@ class Room {
     };
   }
 
-  dt_repair (threshold, oneshot) {
+  dt_repair_non_wall (threshold, oneshot) {
+    return (creep) => {
+      let valid = _.filter(this.structs, s => {
+        if (s.structureType === game.STRUCTURE_WALL) {
+          return false;
+        }
+        return (s.hits / s.hitsMax) < threshold;
+      });
+      return [
+        creep.get_pos().findClosestByPath(valid),
+        oneshot
+      ];
+    };
+  }
+
+  dt_repair_any (threshold, oneshot) {
     return (creep) => {
       let valid = _.filter(this.structs, s => {
         return (s.hits / s.hitsMax) < threshold;
