@@ -5,13 +5,30 @@ const { logging } = require('./logging');
 function spot_valid (room, x, y) {
   const structs = room.structs;
   const terrain = room.terrain;
-  
-  if (terrain.get(x, y) === game.TERRAIN_MASK_WALL) {
+
+  let a = x == 49 || spot_valid_inner(room, x + 1, y    );
+  let b = x == 0 || spot_valid_inner(room,  x - 1, y    );
+  let c = y == 49 || spot_valid_inner(room, x,     y + 1);
+  let d = y == 0 || spot_valid_inner(room,  x,     y - 1);
+
+  if (!a || !b || !c || !d) {
     return false;
   }
 
-  if (_.some(structs, c => c.pos.isEqualTo(x, y))) { 
+  return spot_valid_inner(room, x, y);
+}
+
+function spot_valid_inner(room, x, y) {
+  if (room.terrain.get(x, y) === game.TERRAIN_MASK_WALL) {
     return false;
+  }
+
+  if (_.some(room.structs, c => c.pos.isEqualTo(x, y))) { 
+    return false;
+  }
+  
+  if (_.some(room.csites, c => c.pos.isEqualTo(x, y))) {
+      return false;
   }
 
   if (_.some(room.sources, c => c.pos.getRangeTo(x, y) < 2)) {
@@ -50,7 +67,8 @@ function find_free_spot (room) {
       let n = cur.pop();
       let x = n[0];
       let y = n[1];
-      _.each(pms, m => {
+      for (let i = 0; i < pms.length; ++i) {
+        const m = pms[i];
         let nx = x + m[0];
         let ny = y + m[1];
 
@@ -69,14 +87,14 @@ function find_free_spot (room) {
         marked[nx + ny * 50] = true;
   
         pen.push([nx, ny]);
-      });
+      }
     }
 
     cur = pen;
     pen = [];
   }
 
-  throw new Error('No position could be found.');
+  return null;
 }
 
 module.exports.tick = function (room) {
@@ -85,16 +103,19 @@ module.exports.tick = function (room) {
 
   if (!room.room.controller) {
     // Only if the room has a controller.
+    logging.info('room has no controller');
     return;
   }
 
   if (!room.room.controller.my) {
     // Only if it is _our_ controller.
+    logging.info('this is not our controller');
     return;
   }
 
-  if (room.csites.length > 0) {
+  if (room.csites.length > 1) {
     // Only create one construction site at a time.
+    logging.info('maximum construction sites reached');
     return;
   }
 
@@ -106,13 +127,22 @@ module.exports.tick = function (room) {
 
   const cl = room.room.controller.level;
 
-  _.each(stb, tb => {
+  _.some(stb, tb => {
     const can_have = game.CONTROLLER_STRUCTURES[tb][cl];
     const have = _.sumBy(structs, s => s.structureType === tb ? 1 : 0);
     if (have < can_have) {
+      logging.info(`creating csite for ${tb}`);
       // Find free spot and place a construction site.
       const spot = find_free_spot(room);
-      logging.log(room.room.createConstructionSite(spot, tb));
+      if (spot) {
+        console.log('spot', spot.x, spot.y);
+        //room.room.visual.rect(spot.x, spot.y, 1, 1);
+        logging.log(room.room.createConstructionSite(spot, tb));
+      } else {
+        logging.info('no spot found');
+      }
+      
+      return true;
     }
   });
 }
