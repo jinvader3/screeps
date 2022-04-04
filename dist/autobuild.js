@@ -1,3 +1,15 @@
+/*
+  This module does two major items of work.
+
+  (1) It creates construction site(s) for spawns, extensions, factories, labs, and storage.
+  (2) It creates construction sites for roads through swamps.
+    It does this by checking on each tick the location of all friendly creeps in the room
+    and if any are on a swamp tile then it increments the counter for that tile by one and
+    decrements all incremented swamp tiles by X where X is some decay value. If the counter
+    for the tile reaches Y, where Y is some value, and there are fewer than Z construction
+    sites then a road construction site will be created for that tile. This process continues
+    until most of the swamp tiles used by the creeps have been paved over with a road.
+*/
 const game = require('./game');
 _ = game._;
 const { logging } = require('./logging');
@@ -15,6 +27,10 @@ function spot_valid (room, x, y) {
     return false;
   }
 
+  if (_.some(room.csites, c => c.pos.isEqualTo(x, y))) {
+    return false;
+  }
+
   return spot_valid_inner(room, x, y);
 }
 
@@ -23,12 +39,11 @@ function spot_valid_inner(room, x, y) {
     return false;
   }
 
-  if (_.some(room.structs, c => c.pos.isEqualTo(x, y))) { 
+  if (_.some(
+    _.filter(room.structs, s => s.structureType !== game.STRUCTURE_ROAD), 
+    c => c.pos.isEqualTo(x, y)
+  )) { 
     return false;
-  }
-  
-  if (_.some(room.csites, c => c.pos.isEqualTo(x, y))) {
-      return false;
   }
 
   if (_.some(room.sources, c => c.pos.getRangeTo(x, y) < 2)) {
@@ -47,8 +62,8 @@ function find_free_spot (room) {
   const origin = room.sources[0].pos;
 
   let cur = [[
-    origin.x + 2,
-    origin.y + 2,
+    origin.x,
+    origin.y,
   ]];
 
   let pms = [
@@ -73,16 +88,24 @@ function find_free_spot (room) {
         let ny = y + m[1];
 
         if (nx < 0 || ny < 0 || nx > 49 || ny > 49) {
-          return;
+          continue;
         }
 
         if (marked[nx + ny * 50] === true) {
-          return;
+          continue;
+        }
+
+        if (room.terrain.get(nx, ny) === game.TERRAIN_MASK_WALL) {
+          // Walls are blocking.
+          room.room.visual.rect(nx - 0.5, ny - 0.5, 1, 1, { fill: 'blue', opacity: 0.2 });
+          continue;
         }
         
         if (spot_valid(room, nx, ny)) {
           return new RoomPosition(nx, ny, room.room.name);
         }
+
+        room.room.visual.rect(nx - 0.5, ny - 0.5, 1, 1, { fill: 'red', opacity: 0.2 });
 
         marked[nx + ny * 50] = true;
   
@@ -97,7 +120,7 @@ function find_free_spot (room) {
   return null;
 }
 
-module.exports.tick = function (room) {
+function tick_construction_structures (room) {
   // Lets see what we can build.
   const structs = room.structs;
 
@@ -113,7 +136,7 @@ module.exports.tick = function (room) {
     return;
   }
 
-  if (room.csites.length > 1) {
+  if (room.csites.length > 0) {
     // Only create one construction site at a time.
     logging.info('maximum construction sites reached');
     return;
@@ -136,7 +159,7 @@ module.exports.tick = function (room) {
       const spot = find_free_spot(room);
       if (spot) {
         console.log('spot', spot.x, spot.y);
-        //room.room.visual.rect(spot.x, spot.y, 1, 1);
+        room.room.visual.rect(spot.x - 0.5, spot.y - 0.5, 1, 1, { fill: 'green', opacity: 0.1 });
         logging.log(room.room.createConstructionSite(spot, tb));
       } else {
         logging.info('no spot found');
@@ -146,3 +169,19 @@ module.exports.tick = function (room) {
     }
   });
 }
+
+function tick_construction_roads (room) {
+  // Where are all of the creeps for this room?
+  _.each(room.creeps, creep => {
+    const ground = room.terrain.get(creep.pos.x, creep.pos.y);
+    if (ground === game.TERRAIN_MASK_SWAMP) {
+        
+    }
+  });
+}
+
+module.exports.tick = function (room) {
+  tick_construction_structures(room);
+  //tick_construction_roads(room);
+}
+
