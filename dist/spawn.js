@@ -7,7 +7,7 @@ const { logging } = require('./logging');
 /// this type of creep needs to be built *IF* it does not already exist. The spawn manager also uses this to track
 /// existing creeps and replace them _before_ they expire.
 class Reg {
-    constructor (clazz, group, build_gf, max_level, priority, count, memory, needed_level) {
+    constructor (clazz, group, build_gf, max_level, priority, count, memory, needed_level, post_ticks) {
         // The creep's memory object field `c` is set to this. (USER DEFINED but may be used for matching)
         this.clazz = clazz;
         // The creep's memory object field `g` is set to this. (USER DEFINED but may be used for matching)
@@ -31,6 +31,9 @@ class Reg {
         // . It a nutshell, this dynamically adjusts the `count` parameter depending on the actual maximum
         // level possible to build.
         this.needed_level = needed_level === undefined ? 0 : needed_level;
+        // The number of ticks + the ticks needed to spawn the creep to start building before the existing
+        // creep expires. In this way, we try to replace the creep before it expires.
+        this.post_ticks = post_ticks === undefined ? 10 : post_ticks;
     }
 
     get_max_level (max_energy, max_level) {
@@ -85,12 +88,17 @@ class SpawnManager {
         this.regs = [];
     }
 
-    reg_build (clazz, group, build_gf, max_level, priority, count, memory, needed_level) {
+    reg_build2 ({ clazz, group, build_gf, max_level, priority, count, memory, needed_level, post_ticks }) {
+      return this.reg_build(clazz, group, build_gf, max_level, priority, count, memory, needed_level, post_ticks);
+    }
+
+    reg_build (clazz, group, build_gf, max_level, priority, count, memory, needed_level, post_ticks) {
         logging.log(
           `reg_build(${clazz}, ${group}, ..., ${max_level}, ${priority}, ${count}, ${memory}, ${needed_level})`
         );
+
         this.regs.push(new Reg(
-            clazz, group, build_gf, max_level, priority, count, memory, needed_level
+            clazz, group, build_gf, max_level, priority, count, memory, needed_level, post_ticks
         ));
     }
 
@@ -125,7 +133,14 @@ class SpawnManager {
             rcreeps.sort((a, b) => a.get_ttl() < b.get_ttl() ? -1 : 1);
             let frcreep = rcreeps[0];
 
-            let cond_a = frcreep === undefined || frcreep.get_ttl() <= time_to_spawn + 10;
+            // Calculate the fatigue of the creep and multiply it by `post_ticks`, but don't
+            // let the value go below one.
+            let move_parts = _.sumBy(body, part => part === game.MOVE);
+            let other_parts = _.sumBy(body, part => part !== game.MOVE);
+            let ratio_multiplier = Math.min(1, other_parts / move_parts);
+
+            let cond_a = frcreep === undefined || 
+                         frcreep.get_ttl() <= time_to_spawn + reg.post_ticks * ratio_multiplier;
             let cond_b = rcreeps.length < count;
             let cond_c = rcreeps.length === count;
 

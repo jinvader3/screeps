@@ -19,6 +19,11 @@ class Room {
   constructor (room, gecfg, ecfg) {
     this.room = room;
     this.creeps = [];
+    // TODO: Deprecate access to `room.memory` in favor of this instead. Figure out
+    //       a way to detect the access or even proxy it. How about ES6 Proxy objects?
+    this.memory = this.room.memory;
+    this.controller = this.room.controller;
+
     this.room.memory.mi = this.room.memory.mi || {};
     this.room.memory.jobs = this.room.memory.jobs || [];
     this.jobs = this.room.memory.jobs;
@@ -569,16 +574,32 @@ class Room {
         upgrader_level = 1;
       }
     }
+
+    // Compute the total path cost (moves needed) from the first spawn to
+    // the controller. This allows the spawn code to recreate an upgrader
+    // _and_ give it time to reach the work site before the old one expires.
+    if (this.spawns.length > 0 && this.memory.upgrader_path === undefined) {
+      let res = PathFinder.search(
+        this.spawns[0].pos,
+        { pos: this.controller.pos, range: 1 },
+        { maxRooms: 1 }
+      );
+      // The upgrader is likely overbuilt so it has fatigue. This means this
+      // value needs a multiplier. The spawn code will produce that value and
+      // multiply it by this cost. 
+      this.memory.upgrader_path = res.cost;
+    }
     
-    this.spawnman.reg_build(
-      'upgrader',
-      'upgrader',
-      upgrader_bf,
-      upgrader_level,
-      2,
-      1,
-      {}
-    );
+    this.spawnman.reg_build2({
+      clazz: 'upgrader',
+      group: 'upgrader',
+      build_gf: upgrader_bf,
+      max_level: upgrader_level,
+      priority: 2,
+      count: 1,
+      memory: {},
+      post_ticks: this.memory.upgrader_path,
+    });
   }
 
   container_evaluate_state (cont, on_amount, off_amount) {
@@ -698,7 +719,6 @@ class Room {
     let sources_and_denergy = [];
     _.each(this.sources, source => sources_and_denergy.push(source));
     _.each(denergy, i => sources_and_denergy.push(i));
-
 
     this.record_stat('dropped.energy', _.sumBy(denergy, e => e.amount));
 
@@ -879,7 +899,7 @@ class Room {
 
     task.transfer(lab_task, 0.2, 5);
 
-    if (this.ecfg.autobuild && (game.time() % 1 === 0)) {
+    if (this.ecfg.autobuild) {
       let abtask = task.spawn_isolated(-40, 'autobuild', ctask => {
         AutoBuild.tick(this);
       });

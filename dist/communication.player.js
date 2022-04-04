@@ -56,11 +56,10 @@ function reply(mySegment, sender, message) {
     switch(message.subject) {
 
         // Request to use a command line :
-        case 'eval': return Eval(mySegment, sender, message, ['Harlem', 'Balthael','Aethercyn']); // TODO: complete the last argument, it is the list of userName allow to use command lines
+        case 'eval': return Eval(mySegment, sender, message, ['Harlem', 'Balthael', 'Aethercyn']); // TODO: complete the last argument, it is the list of userName allow to use command lines
 
         // Print the message in the console :
         case 'print': return console.log("[communication.player] " + sender + " : " + data);
-
     }
 
     // If the subject is unknown, an error is returned :

@@ -144,12 +144,14 @@ class TaskEngine {
   run_tasks () {
     let errors = []
     while (this.pend_tasks.length > 0) {
+      logging.info('executing pending tasks', this.pend_tasks.length);
       this.pend_tasks.sort((a, b) => {
         return a.priority > b.priority ? 1 : -1;
       });
       let cur_task = this.pend_tasks.shift();
       let err = cur_task.run(this.stats);
       if (err) {
+        logging.info(`err: ${err}`);
         errors.push([cur_task.get_full_name(), err])
       }
     }

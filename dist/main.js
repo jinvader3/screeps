@@ -8,7 +8,7 @@ const { guimenu } = require('./guimenu');
 const cmds = require('./cmds');
 
 // Harlem's communication module. It registers global variables.
-require('communication.player');
+require('./communication.player');
 
 module.exports.rooms = {};
 
@@ -42,6 +42,7 @@ module.exports.loop = function () {
         ecfg,           // global configuration
         ecfg[name]      // configuration per room
       );
+      room.robj = robj;
       rooms[name] = robj;
     }
   }	
