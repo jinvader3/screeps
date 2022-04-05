@@ -1,5 +1,3 @@
-// @flow
-
 const game = require('./game');
 const _ = game._;
 const { CreepGeneralWorker } = require('./creepgw');
@@ -17,23 +15,8 @@ const { PathManager } = require('./path');
 const { logging } = require('./logging');
 const AutoBuild = require('./autobuild');
 
-export class Room {
-  room: any;
-  creeps: Array<any>;
-  memory: any;
-  jobs: any;
-  breq: any;
-  res_xfer_intents: any;
-  gecfg: any;
-  ecfg: any;
-  spawnman: any;
-  pathman: any;
-  _scm: any;
-  scm: any;
-  controller: any;
-  stats: any;
-
-  constructor (room: any, gecfg: any, ecfg: any) {
+class Room {
+  constructor (room, gecfg, ecfg) {
     this.room = room;
     this.creeps = [];
     // TODO: Deprecate access to `room.memory` in favor of this instead. Figure out
@@ -1418,4 +1401,4 @@ export class Room {
   }
 }
 
-//module.exports.Room = Room;
+module.exports.Room = Room;

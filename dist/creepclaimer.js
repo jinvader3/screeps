@@ -1,21 +1,18 @@
-// @flow
-import type Room from './room';
-
 const { Creep } = require('./creep');
 const game = require('./game');
 const _ = game._;
 const { logging } = require('./logging');
 
 class CreepClaimer extends Creep {
-  get_target_room (): string {
+  get_target_room () {
     return this.creep.memory.tr;
   }
 
-  in_target_room (): boolean {
+  in_target_room () {
     return this.creep.pos.roomName === this.creep.memory.tr;
   }
 
-  travel_to_target_room (): void {
+  travel_to_target_room () {
     this.creep.moveTo(
       new game.RoomPosition(25, 25, this.creep.memory.tr),
       { 
@@ -44,7 +41,7 @@ class CreepClaimer extends Creep {
     );
   }
 
-  tick (): void {
+  tick () {
     if (!this.in_target_room()) {
       logging.log('!this.in_target_room()');
       this.travel_to_target_room();
@@ -66,7 +63,7 @@ class CreepClaimer extends Creep {
     });
   }
 
-  tick_spawn_builder (croom: Room): void {
+  tick_spawn_builder (croom) {
     // This creep is only intended to establish an initial foothold
     // in the room at this time. It only builds a single spawn.
     if (croom.find(game.FIND_MY_SPAWNS).length > 0) {
@@ -132,7 +129,7 @@ class CreepClaimer extends Creep {
     }
   }
 
-  tick_controller_worker (croom: any): void {
+  tick_controller_worker (croom) {
     if (!croom) {
       logging.log('!croom');
       return;
