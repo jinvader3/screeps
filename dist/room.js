@@ -1,5 +1,7 @@
+// @flow
+
 const game = require('./game');
-_ = game._;
+const _ = game._;
 const { CreepGeneralWorker } = require('./creepgw');
 const { CreepDummy } = require('./creepdummy');
 const { CreepMiner } = require('./creepminer');
@@ -15,8 +17,23 @@ const { PathManager } = require('./path');
 const { logging } = require('./logging');
 const AutoBuild = require('./autobuild');
 
-class Room {
-  constructor (room, gecfg, ecfg) {
+export class Room {
+  room: any;
+  creeps: Array<any>;
+  memory: any;
+  jobs: any;
+  breq: any;
+  res_xfer_intents: any;
+  gecfg: any;
+  ecfg: any;
+  spawnman: any;
+  pathman: any;
+  _scm: any;
+  scm: any;
+  controller: any;
+  stats: any;
+
+  constructor (room: any, gecfg: any, ecfg: any) {
     this.room = room;
     this.creeps = [];
     // TODO: Deprecate access to `room.memory` in favor of this instead. Figure out
@@ -464,7 +481,17 @@ class Room {
             body.push(game.WORK);
             yield body
         }
-    }    
+    }
+
+    if (this.spawns.length > 0 && this.sources.length > 0 && this.memory.minera_path === undefined) {
+      let res = PathFinder.search(
+        this.spawns[0].pos,
+        { pos: this.sources[0].pos, range: 1 },
+        { maxRooms: 1 }
+      );
+
+      this.memory.minera_path = res.cost;
+    } 
 
     if (this.sources.length > 0) {
       this.spawnman.reg_build(
@@ -480,6 +507,16 @@ class Room {
       );
     }
   
+    if (this.spawns.length > 0 && this.sources.length > 1 && this.memory.minerb_path === undefined) {
+      let res = PathFinder.search(
+        this.spawns[0].pos,
+        { pos: this.sources[1].pos, range: 1 },
+        { maxRooms: 1 }
+      );
+
+      this.memory.minerb_path = res.cost;
+    } 
+
     if (this.sources.length > 1) {
       this.spawnman.reg_build(
           'miner',
@@ -491,7 +528,7 @@ class Room {
           {
               s: this.sources[1].id,
           }
-      );      
+      );
     }
 
     const clevel = this.room.controller ? this.room.controller.level : 0;
@@ -1381,4 +1418,4 @@ class Room {
   }
 }
 
-module.exports.Room = Room;
+//module.exports.Room = Room;

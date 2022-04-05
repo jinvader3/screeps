@@ -23,6 +23,8 @@ _.sumBy = (iterable, f) => {
 if (global['Game'] !== undefined) {
   module.exports = {
     _: _,
+    PathFinder: PathFinder,
+    RoomPosition: RoomPosition,
     WORK: WORK,
     MOVE: MOVE,
     ATTACK: ATTACK,

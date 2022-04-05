@@ -1,20 +1,23 @@
+// @flow
+import type Room from './room';
+
 const { Creep } = require('./creep');
 const game = require('./game');
 const _ = game._;
 const { logging } = require('./logging');
 
 class CreepClaimer extends Creep {
-  get_target_room () {
+  get_target_room (): string {
     return this.creep.memory.tr;
   }
 
-  in_target_room () {
+  in_target_room (): boolean {
     return this.creep.pos.roomName === this.creep.memory.tr;
   }
 
-  travel_to_target_room () {
+  travel_to_target_room (): void {
     this.creep.moveTo(
-      new RoomPosition(25, 25, this.creep.memory.tr),
+      new game.RoomPosition(25, 25, this.creep.memory.tr),
       { 
         reusePath: 20,
         costCallback: (room_name, cm) => {
@@ -29,7 +32,7 @@ class CreepClaimer extends Creep {
           }
 
           logging.log(`avoiding room ${room_name}`);
-          cm = new PathFinder.CostMatrix();
+          cm = new game.PathFinder.CostMatrix();
           for (let x = 0; x < 50; ++x) {
             for (let y = 0; y < 50; ++y) {
               cm.set(x, y, 255);
@@ -41,7 +44,7 @@ class CreepClaimer extends Creep {
     );
   }
 
-  tick () {
+  tick (): void {
     if (!this.in_target_room()) {
       logging.log('!this.in_target_room()');
       this.travel_to_target_room();
@@ -63,7 +66,7 @@ class CreepClaimer extends Creep {
     });
   }
 
-  tick_spawn_builder (croom) {
+  tick_spawn_builder (croom: Room): void {
     // This creep is only intended to establish an initial foothold
     // in the room at this time. It only builds a single spawn.
     if (croom.find(game.FIND_MY_SPAWNS).length > 0) {
@@ -129,7 +132,7 @@ class CreepClaimer extends Creep {
     }
   }
 
-  tick_controller_worker (croom) {
+  tick_controller_worker (croom: any): void {
     if (!croom) {
       logging.log('!croom');
       return;
@@ -143,14 +146,14 @@ class CreepClaimer extends Creep {
     if (croom.controller.level == 0) {
       let res = this.creep.claimController(croom.controller);
       logging.log(`claimController = ${res}`);
-      if (res === ERR_NOT_IN_RANGE) {
+      if (res === game.ERR_NOT_IN_RANGE) {
         this.creep.moveTo(croom.controller, { reusePath: 20 });
       }
     } else {
       if (!croom.controller.my) {
         let res = this.creep.attackController(croom.controller);
         logging.log(`attackController = ${res}`);
-        if (res === ERR_NOT_IN_RANGE) {
+        if (res === game.ERR_NOT_IN_RANGE) {
           this.creep.moveTo(croom.controller, { reusePath: 20 });
         }
       }

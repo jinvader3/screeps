@@ -1,22 +1,34 @@
 /*
   This module does two major items of work.
 
-  (1) It creates construction site(s) for spawns, extensions, factories, labs, and storage.
+  (1) It creates construction site(s) for spawns, extensions, factories, labs, 
+      and storage. 
+
   (2) It creates construction sites for roads through swamps.
-    It does this by checking on each tick the location of all friendly creeps in the room
-    and if any are on a swamp tile then it increments the counter for that tile by one and
-    decrements all incremented swamp tiles by X where X is some decay value. If the counter
-    for the tile reaches Y, where Y is some value, and there are fewer than Z construction
-    sites then a road construction site will be created for that tile. This process continues
-    until most of the swamp tiles used by the creeps have been paved over with a road.
+
+    It does this by checking on each tick the location of all friendly creeps
+    in the room and if any are on a swamp tile then it increments the counter
+    for that tile by one and decrements all incremented swamp tiles by X where
+    X is some decay value. If the counter for the tile reaches Y, where Y is
+    some value, and there are fewer than Z construction sites then a road
+    construction site will be created for that tile. This process continues 
+    until most of the swamp tiles used by the creeps have been paved over with
+    a road.
 */
 const game = require('./game');
 _ = game._;
 const { logging } = require('./logging');
 
+/*
+  Return true if the spot is valid for construction of an essential building.
+*/
 function spot_valid (room, x, y) {
   const structs = room.structs;
   const terrain = room.terrain;
+
+  if (x <= 1 || y <= 1 || x >= 49 || y >= 49) {
+    return false;
+  }
 
   let a = x == 49 || spot_valid_inner(room, x + 1, y    );
   let b = x == 0 || spot_valid_inner(room,  x - 1, y    );

@@ -10,8 +10,15 @@
     "grunt-screeps": "^1.5.0"
   },
   "scripts": {
-    "test": "test.js"
+    "flow": "flow",
+    "test": "test.js",
+    "build": "flow-remove-types dist/ -d out/",
+    "prepublish": "npm run build"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "flow-bin": "^0.175.0",
+    "flow-remove-types": "^2.175.0"
+  }
 }
