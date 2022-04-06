@@ -481,7 +481,7 @@ class Room {
           'miner',
           'minera',
           miner_bf,
-          5,
+          10,
           0,
           1,
           {
@@ -505,7 +505,7 @@ class Room {
           'miner',
           'minerb',
           miner_bf,
-          5,
+          10,
           1,
           1,
           {
