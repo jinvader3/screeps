@@ -27,9 +27,6 @@ class Room {
     this.room.memory.jobs = this.room.memory.jobs || [];
     this.jobs = this.room.memory.jobs;
     this.room.memory.jobs_uid = this.room.memory.jobs_uid || 0;
-    this.breq = [];
-    this.room.memory.res_xfer_intents = this.room.memory.res_xfer_intents || [];
-    this.res_xfer_intents = this.room.memory.res_xfer_intents;
     this.gecfg = gecfg;
     this.ecfg = ecfg;
     this.spawnman = new SpawnManager();
@@ -40,36 +37,33 @@ class Room {
     this._scm = null;   // This is the original.
     this.scm = null;    // This has creep positions added 
                         // or other dynamic per tick things.
+    this.creep_group_counts = {}
+    this.reg_put_intents = [];
+    this.reg_get_intents = [];
+    this.spawns = this.room.find(game.FIND_MY_SPAWNS);
+    this.sources = this.room.find(game.FIND_SOURCES); 
+    this.terrain = this.room.getTerrain();
+    this.exts = [];
+    this.towers = [];
+    this.structs = [];
+    this.roads = [];
+    this.containers = [];
+    this.containers_near_sources = [];
+    this.active_containers_near_sources = [];
+    this.containers_near_sources_with_energy = [];
+    this.containers_adj_controller = [];
+    this.active_containers_adj_controller = [];
+    this.containers_adj_mineral = [];
+    this.active_containers_adj_mineral = [];
+    this.links = [];
+    this.links_adj_storage = [];
+    this.labs = [];
+    this.extractors = [];
+    this.minerals = this.room.find(game.FIND_MINERALS);
   }
 
   record_stat (key, value) {
     this.stats.record_stat(`${this.get_name()}.${key}`, value);
-  }
-
-  request_build_creep (ruid, body_unit, unit_min, unit_max, group, group_count, priority, memory) {
-    if (!_.some(this.breq, breq => {
-      if (breq.ruid === ruid) {
-          breq.body_unit = body_unit;
-          breq.unit_min = unit_min;
-          breq.unit_max = unit_max;
-          breq.group = group;
-          breq.group_count = group_count;
-          breq.priority = priority;
-          breq.memory = memory
-          return true;
-        } else { 
-          return false 
-        }
-    })) {
-      this.breq.push({
-        ruid: ruid,
-        body_unit: body_unit,
-        unit_min: unit_min,
-        unit_max: unit_max,
-        clazz: clazz,
-        priority: priority,
-      });
-    }
   }
 
   get_name () {
@@ -647,32 +641,6 @@ class Room {
 
   tick (task) {
     // The `tick_need_spawn` will populate this.
-    this.creep_group_counts = {}
-    this.reg_put_intents = [];
-    this.reg_get_intents = [];
-
-    this.spawns = this.room.find(game.FIND_MY_SPAWNS);
-    this.sources = this.room.find(game.FIND_SOURCES); 
- 
-    this.terrain = this.room.getTerrain();
-    this.exts = [];
-    this.towers = [];
-    this.structs = [];
-    this.roads = [];
-    this.containers = [];
-    this.containers_near_sources = [];
-    this.active_containers_near_sources = [];
-    this.containers_near_sources_with_energy = [];
-    this.containers_adj_controller = [];
-    this.active_containers_adj_controller = [];
-    this.containers_adj_mineral = [];
-    this.active_containers_adj_mineral = [];
-    this.links = [];
-    this.links_adj_storage = [];
-    this.labs = [];
-    this.extractors = [];
-    this.minerals = this.room.find(game.FIND_MINERALS);
-
     let denergy = _.filter(this.room.find(game.FIND_DROPPED_RESOURCES), 
       i => i.resourceType === game.RESOURCE_ENERGY
     );
@@ -855,25 +823,7 @@ class Room {
 
     let lab_creeps = [];
 
-    {
-      const rm = this.room.memory;
-      let scount = this.structs.length;
-      if (scount !== rm.scm_scount || !rm.scm) {
-        rm.scm_scount = scount;
-        this._scm = this.pathman.get_all_stop_cost_matrix_smoothed();
-        rm.scm = this._scm.serialize();
-      } else {
-        if (this._scm === null) {
-          this._scm = game.path_finder().CostMatrix.deserialize(rm.scm);
-        }
-      }
-    }
-
-    this.scm = this._scm.clone();
     let all_creeps = this.room.find(game.FIND_CREEPS);
-    for (let creep of all_creeps) {
-      this.scm.set(creep.pos.x, creep.pos.y, 255);
-    }
 
     for (let ndx in this.creeps) {
       let creep = this.creeps[ndx];
