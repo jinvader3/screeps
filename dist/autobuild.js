@@ -160,6 +160,16 @@ function tick_construction_structures (room) {
     game.STRUCTURE_FACTORY,
   ];
 
+  const link_count = _.sumBy(structs, s => s.structureType === game.STRUCTURE_LINK);
+
+  if (link_count === 2) {
+    // IF the two links have been built already, for each source, then schedule
+    // the third link to be build within the base. The miners will detect the
+    // construction of the third link and start sending energy to it.
+    logging.debug('link_count === 2; scheduling construction of third link');
+    stb.push(game.STRUCTURE_LINK);
+  }
+
   const cl = room.room.controller.level;
 
   _.some(stb, tb => {
@@ -183,17 +193,52 @@ function tick_construction_structures (room) {
 }
 
 function tick_construction_roads (room) {
+  room.room.memory.roadtrack = room.room.memory.roadtrack || {};
+  const track = room.room.memory.roadtrack;
+
   // Where are all of the creeps for this room?
   _.each(room.creeps, creep => {
-    const ground = room.terrain.get(creep.pos.x, creep.pos.y);
+    const ground = room.terrain.get(creep.creep.pos.x, creep.creep.pos.y);
+    const i = creep.creep.pos.x + creep.creep.pos.y * 50;
     if (ground === game.TERRAIN_MASK_SWAMP) {
-        
+      track[i] = track[i] === undefined ? 1 : track[i] + 1;
     }
   });
-}
+
+  _.each(track, (v, k) => {
+    track[k] -= 0.01;
+    if (track[k] <= 0) {
+      track[k] = undefined;
+    }
+
+    let y = Math.floor(k / 50);
+    let x = k - y * 50;
+
+    if (track[k] > 30.0) {
+      room.room.visual.rect(x - 0.5, y - 0.5, 1, 1, { fill: 'orange' });
+    }
+  });
+
+  if (room.csites.length > 0) {
+    return;
+  }
+
+  _.some(track, (v, k) => {
+    let y = Math.floor(k / 50);
+    let x = k - y * 50;
+
+    if (v > 30.0) {
+      if (!_.some(room.roads, r => r.pos.isEqualTo(x, y))) {
+        room.room.createConstructionSite(x, y, game.STRUCTURE_ROAD);
+        return true;
+      }
+    }
+    return false;
+  });
+ }
 
 module.exports.tick = function (room) {
   tick_construction_structures(room);
-  //tick_construction_roads(room);
+  tick_construction_roads(room);
 }
 
