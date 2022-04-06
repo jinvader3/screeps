@@ -11,7 +11,6 @@ const { CreepRemoteMiner } = require('./creeprminer');
 const { CreepRemoteHauler } = require('./creeprhauler');
 const { Stats } = require('./stats');
 const { CreepLabRat, LabManager } = require('./labrats');
-const { PathManager } = require('./path');
 const { logging } = require('./logging');
 const AutoBuild = require('./autobuild');
 
@@ -35,7 +34,6 @@ class Room {
     this.ecfg = ecfg;
     this.spawnman = new SpawnManager();
     this.stats = new Stats();
-    this.pathman = new PathManager(this);
     // A smoothed cost map which looks like a gravity well around all 
     // the structures. This is supposed to keep the path finding using
     // the least amount of CPU possible.
