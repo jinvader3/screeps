@@ -205,7 +205,7 @@ class LabManager {
         logging.info(`Lab-Output=${next_comp_order.output}`);
         logging.info(`lab2_what=${lab2_what} lab1_what=${lab1_what} lab0_what=${lab0_what}`);
 
-        if (lab2_what === undefined || lab2_what === next_comp_order.inputs[2]) {          
+        if (lab2_what === undefined || lab2_what === next_comp_order.output) {          
         } else {
           logging.info('lab2 has the wrong product in it');
           mover.stmh_set('move_product_outof_lab_c', ss => {
