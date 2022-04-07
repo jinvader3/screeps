@@ -79,15 +79,15 @@ class StateMachineCreep extends Creep {
       return true;
     }
 
+    let rtypes = Object.keys(this.creep.store);
+    
+    if (rtypes.length === 0) {
+      logging.debug('There is nothing left to transfer.');
+      // There is nothing left to transfer.
+      return true;
+    }
+
     if (this.creep.pos.isNearTo(stor)) {
-      let rtypes = Object.keys(this.creep.store);
-      
-      if (rtypes.length === 0) {
-        logging.debug('There is nothing left to transfer.');
-        // There is nothing left to transfer.
-        return true;
-      }
-      
       let rtype = rtypes[0];
       
       let res = this.creep.transfer(
