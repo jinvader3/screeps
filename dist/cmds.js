@@ -86,6 +86,12 @@ module.exports.register = function () {
     return `AutoBuild activated for room ${room_name}`;
   };
 
+  Game.autobuild2 = (room_name, active) => {
+    ecfg[room_name] = ecfg[room_name] || {};
+    ecfg[room_name].autobuild2 = active;
+    return `AutoBuild2 for room ${room_name} set to ${active}.`;
+  };
+
   Game.autobuild_on.help = {
     desc: 'Turn autobuild on for the room specified.',
     params: [

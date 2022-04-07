@@ -33,6 +33,10 @@ class Terminal {
     this.term = room.get_terminal();
   }
 
+  has_terminal_structure() {
+    return this.term !== undefined && this.term !== null;
+  }
+
   make_plan_linear (plan, out, depth) {
     out = out || [];
     depth = depth || 0;

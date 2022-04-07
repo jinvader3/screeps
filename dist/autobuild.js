@@ -63,7 +63,7 @@ class AutoBuilder {
     ];
 
     const labs = this.room.labs;
-    let connection_count = 0;
+    let connection_count = -1;
 
     this.flood_fill(
       lab.pos.x, lab.pos.y,
@@ -91,12 +91,21 @@ class AutoBuilder {
 
     cur.push([sx, sy]);
 
+    const visited = {};
+
     while (cur.length > 0) {
       while (cur.length > 0) {
         let c = cur.pop();
         for (let move of moves) {
           let nx = c[0] + move[0];
           let ny = c[1] + move[1];
+          let ni = nx + ny * 50;
+
+          if (visited[ni] === true) {
+            continue;
+          }
+
+          visited[ni] = true;
 
           if (nx < 0 || nx > 49 || ny < 0 || ny > 49) {
             continue;
@@ -132,10 +141,10 @@ class AutoBuilder {
     }
 
     // Spots orthogonal must be valid too.
-    let a = this.spot_valid_inner(room, x + 1, y    );
-    let b = this.spot_valid_inner(room, x - 1, y    );
-    let c = this.spot_valid_inner(room, x,     y + 1);
-    let d = this.spot_valid_inner(room, x,     y - 1);
+    let a = this.spot_valid_inner(x + 1, y    );
+    let b = this.spot_valid_inner(x - 1, y    );
+    let c = this.spot_valid_inner(x,     y + 1);
+    let d = this.spot_valid_inner(x,     y - 1);
 
     if (!a || !b || !c || !d) {
       return false;
@@ -147,7 +156,7 @@ class AutoBuilder {
     }
 
     // Do other checks.
-    return this.spot_valid_inner(room, x, y);
+    return this.spot_valid_inner(x, y);
   }
 
   spot_valid_inner(x, y) {
@@ -256,14 +265,9 @@ class AutoBuilder {
       return;
     }
 
-    if (room.csites.length > 0) {
-      // Only create one construction site at a time.
-      logging.info('maximum construction sites reached');
-      return;
-    }
-
     const cl = room.room.controller.level;
-
+    
+    /*
     const lab_can_have = game.CONTROLLER_STRUCTURES[game.STRUCTURE_LAB][cl];
     const lab_have = room.labs.length;
 
@@ -272,6 +276,7 @@ class AutoBuilder {
       // around them.
       _.each(room.labs, lab => {
           const count = this.lab_connection_count(lab);
+          logging.info('lab connection count', count);
           if (count < 2) {
             // Because the lab does not have two other labs connected
             // onto it. We reserve all spots around it until it does.
@@ -282,14 +287,22 @@ class AutoBuilder {
       // We only reserved the exact number of needed spots. Pick one and build a lab.
       if (this.reserved.length > 0) {
         const spot = this.reserved[0];
-        room.room.createConstructionSite(spot[0], spot[1], game.STRUCTURE_LAB);
+        logging.info('reserved spot exists', spot[0], spot[1]);
+        logging.info('@', room.room.createConstructionSite(spot[0], spot[1], game.STRUCTURE_LAB));
         return;
       }
     }
 
+    if (room.csites.length > 0) {
+      // Only create one construction site at a time.
+      logging.info('maximum construction sites reached');
+      return;
+    }
+    */
+
     const stb = [
       game.STRUCTURE_SPAWN, game.STRUCTURE_EXTENSION, game.STRUCTURE_STORAGE,
-      game.STRUCTURE_TOWER, game.STRUCTURE_TERMINAL,
+      game.STRUCTURE_TOWER, game.STRUCTURE_TERMINAL, //game.STRUCTURE_LAB,
       game.STRUCTURE_FACTORY,
     ];
     
@@ -304,10 +317,12 @@ class AutoBuilder {
     _.some(stb, tb => {
       const can_have = game.CONTROLLER_STRUCTURES[tb][cl];
       const have = _.sumBy(structs, s => s.structureType === tb ? 1 : 0);
+
       if (have < can_have) {
         logging.info(`creating csite for ${tb}`);
         // Find free spot and place a construction site.
         const spot = this.find_free_spot();
+
         if (spot) {
           console.log('spot', spot.x, spot.y);
           room.room.visual.rect(spot.x - 0.5, spot.y - 0.5, 1, 1, { fill: 'green', opacity: 0.1 });

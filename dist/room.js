@@ -13,6 +13,7 @@ const { Stats } = require('./stats');
 const { CreepLabRat, LabManager } = require('./labrats');
 const { logging } = require('./logging');
 const { AutoBuilder } = require('./autobuild');
+const { AutoBuild2 } = require('./autobuild2');
 
 class Room {
   constructor (room, gecfg, ecfg) {
@@ -867,12 +868,20 @@ class Room {
 
     task.transfer(lab_task, 2, 5);
 
-    if (this.ecfg.autobuild) {
-      let abtask = task.spawn_isolated(-40, 'autobuild', ctask => {
-        (new AutoBuilder(this)).tick();
-      });
-      
-      task.transfer(abtask, 0.2, 1);
+    if (this.ecfg.autobuild2) {
+        let abtask = task.spawn_isolated(-40, 'autobuild2', ctask => {
+          (new AutoBuild2(this)).tick(0.2);
+        });
+        
+        task.transfer(abtask, 0.2, 1);
+    } else {
+      if (this.ecfg.autobuild) {
+        let abtask = task.spawn_isolated(-40, 'autobuild', ctask => {
+          (new AutoBuilder(this)).tick();
+        });
+        
+        task.transfer(abtask, 0.2, 1);
+      }
     }
 
     task.spawn(100, `spawnman`, ctask => {
