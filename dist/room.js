@@ -12,7 +12,7 @@ const { CreepRemoteHauler } = require('./creeprhauler');
 const { Stats } = require('./stats');
 const { CreepLabRat, LabManager } = require('./labrats');
 const { logging } = require('./logging');
-const AutoBuild = require('./autobuild');
+const { AutoBuilder } = require('./autobuild');
 
 class Room {
   constructor (room, gecfg, ecfg) {
@@ -802,17 +802,17 @@ class Room {
     let dt_push_hauler = [
       this.dt_cond(
         () => this.hcreeps.length > 0,
-        [
+        [ // IF the above is TRUE then do:
           this.dt_push_to_objects_with_stores(1.0, this.towers),
         ],
-        [
+        [ // IF the above is FALSE then do:
           this.dt_cond(
             () => this.creep_group_counts.worker > 0, 
-            [
+            [ // IF the above is TRUE then do:
               // Fill the storage until it hits 10k.
               this.dt_push_storage(10000)
             ],
-          ),
+          ), // FINALLY, do this also if !(hcreeps.length > 0)
           this.dt_push_to_objects_with_stores(1.0, this.spawns.concat(this.exts)),
           this.dt_push_to_objects_with_stores(1.0, this.towers),
           this.dt_push_to_objects_with_stores(1.0, this.active_containers_adj_controller),
@@ -865,11 +865,11 @@ class Room {
       labman.tick(ctask, lab_creeps, this.labs, this.extractors);
     });
 
-    task.transfer(lab_task, 0.2, 5);
+    task.transfer(lab_task, 2, 5);
 
     if (this.ecfg.autobuild) {
       let abtask = task.spawn_isolated(-40, 'autobuild', ctask => {
-        AutoBuild.tick(this);
+        (new AutoBuilder(this)).tick();
       });
       
       task.transfer(abtask, 0.2, 1);
