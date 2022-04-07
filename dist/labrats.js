@@ -36,11 +36,11 @@ class LabManager {
     this.m = rm.labman;
 
     this.term = new Terminal(room);
+    this.has_terminal_structure = this.term.has_terminal_structure();
 
     const gm = game.memory();
 
     gm.trades_time = gm.trades_time || 0;
-
     logging.debug('thinking about doing trades');
     if (game.time() - gm.trades_time > 3000) {
       logging.debug('doing find_trades using terminal');
@@ -52,20 +52,7 @@ class LabManager {
     this.comp_orders = rm.labman_comp_orders;
   }
 
-  tick_trade (task, creeps, labs, movers) {
-    const gm = game.memory();
-
-    if (!gm.trades || gm.trades.length === 0) {
-      logging.info('There are no trades to do analysis on.');
-      return;
-    }
-
-    const term_obj = this.room.get_terminal();
-
-    if (!term_obj) {
-      return;
-    }
-
+  tick_need_credits (term_obj, movers) {
     if (term_obj.store.getUsedCapacity(game.RESOURCE_ENERGY) < 1500) {
       let mover = movers[0];
       logging.info('I need to put energy into the terminal.');
@@ -83,14 +70,10 @@ class LabManager {
         logging.info('I have no labrat to move energy into the terminal...');
       }
     }
-    
-    let mover = movers[0];
-    let stor = this.room.get_storage();
+    return false;
+  }
 
-    if (!mover) {
-      return;
-    }
-
+  tick_equalize_onto_terminal (stor, mover, term_obj) {
     if (stor) {
       logging.info('checking storage for resources needed in terminal');
       for (let rtype in stor.store) {
@@ -105,6 +88,36 @@ class LabManager {
           });
         }
       }
+    }
+  }
+
+  tick_trade (task, creeps, labs, movers) {
+    const gm = game.memory();
+
+    if (!gm.trades || gm.trades.length === 0) {
+      logging.info('There are no trades to do analysis on.');
+      return;
+    }
+
+    const term_obj = this.room.get_terminal();
+
+    if (!term_obj) {
+      return;
+    }
+
+    if (this.tick_need_credits(term_obj, movers)) {
+      return true;
+    }
+   
+    let mover = movers[0];
+    let stor = this.room.get_storage();
+
+    if (!mover) {
+      return;
+    }
+
+    if (this.tick_equalize_onto_terminal(stor, mover, term_obj)) {
+      return true;
     }
 
     // Try to sell things to maintain at least 50K in credits. BUT, _only_ if there
@@ -135,27 +148,29 @@ class LabManager {
       task.transfer(ctask, 0.2, 1);
     }
 
-    for (let corder of this.comp_orders) {
-      if (corder.action === 'buy' && corder.count > 0) {
-        logging.info(`Thinking about buying for corder ${corder.what} at count ${corder.count}.`);
-        // Look for the item at the best price.
-        const sorder = this.term.find_best_seller(corder.what);
-        if (term_obj.cooldown === 0) {
-          let deal_res = game.market().deal(sorder.id, corder.count, this.room.get_name());
-          logging.info(`deal_res = ${deal_res}`);
-          if (deal_res === game.OK) {
-            this.term.force_orders_update();
-            logging.info('The corder was set to zero. It has been fulfilled.');
-            logging.info(`corder.count=${corder.count} sorder.amount=${sorder.amount}`);
-            corder.count -= Math.min(corder.count, sorder.amount);
+    logging.wrapper('deals', () => {
+      for (let corder of this.comp_orders) {
+        if (corder.action === 'buy' && corder.count > 0) {
+          logging.info(`Thinking about buying for corder ${corder.what} at count ${corder.count}.`);
+          // Look for the item at the best price.
+          const sorder = this.term.find_best_seller(corder.what);
+          if (term_obj.cooldown === 0) {
+            let deal_res = game.market().deal(sorder.id, corder.count, this.room.get_name());
+            logging.info(`deal_res = ${deal_res}`);
+            if (deal_res === game.OK) {
+              this.term.force_orders_update();
+              logging.info('The corder was set to zero. It has been fulfilled.');
+              logging.info(`corder.count=${corder.count} sorder.amount=${sorder.amount}`);
+              corder.count -= Math.min(corder.count, sorder.amount);
+            }
+            return;
           }
         }
       }
-    }
+    });
 
     // Look for next non-zero count component order of action 'combine'.
     let next_comp_order = null;
-
     for (let x = 0; x < this.comp_orders.length; ++x) {
       const corder = this.comp_orders[x];
       if (corder.action === 'combine' && corder.count > 0) {
@@ -183,25 +198,28 @@ class LabManager {
         let lab1_what = Object.keys(labs[1].store)[0];
         let lab2_what = Object.keys(labs[2].store)[0];
 
-        if (lab2_what !== next_comp_order.output) {
-          logging.info('Wrong product in output lab.');
-          mover.stmh_set('move_product_outof_lab_c', ss => {
-            mover.stmh_dump_store_to_object(ss, this.room.get_storage());
-            mover.stmh_load_resource_from_store(ss, labs[2], lab2_what);
-            mover.stmh_dump_store_to_object(ss, term_obj);
-            return true;
-          });
-        }
-
         // Put in an order to load up the labs.
         logging.info(`Creating orders to load up labratories.`);
         logging.info(`Lab-Input-A=${next_comp_order.inputs[0]}`);
         logging.info(`Lab-Input-B=${next_comp_order.inputs[1]}`);
         logging.info(`Lab-Output=${next_comp_order.output}`);
+        logging.info(`lab2_what=${lab2_what} lab1_what=${lab1_what} lab0_what=${lab0_what}`);
+
+        if (lab2_what === undefined || lab2_what === next_comp_order.inputs[2]) {          
+        } else {
+          logging.info('lab2 has the wrong product in it');
+          mover.stmh_set('move_product_outof_lab_c', ss => {
+            mover.stmh_dump_store_to_object(ss, this.room.get_storage());
+            mover.stmh_load_resource_from_store(ss, labs[2], lab2_what);
+            mover.stmh_dump_store_to_object(ss, term_obj);
+            return true;
+          });    
+        }
 
         if (lab0_what === undefined || lab0_what === next_comp_order.inputs[0]) {          
           if (term_obj.store.getUsedCapacity(next_comp_order.inputs[0]) > 0) {
-            mover.stmh_set('move_product_into_lab_a', ss => {
+            logging.info('moving product into lab0');
+            mover.stmh_set('move_product_into_lab_aa', ss => {
               mover.stmh_dump_store_to_object(ss, this.room.get_storage());
               mover.stmh_load_resource_from_store(ss, term_obj, next_comp_order.inputs[0]);
               mover.stmh_dump_store_to_object(ss, labs[0]);
@@ -241,8 +259,11 @@ class LabManager {
         // the process the inputs into the output.
         let a_have = labs[0].store.getUsedCapacity(next_comp_order.inputs[0]);
         let b_have = labs[1].store.getUsedCapacity(next_comp_order.inputs[1]);
+        logging.info(`?=${labs[0].id} a_have=${a_have} b_have=${b_have}`);
         if (a_have > 0 && b_have > 0 && labs[2].cooldown === 0) {
-          labs[2].runReaction(labs[0], labs[1]);
+          logging.info('running reaction');
+          const res = labs[2].runReaction(labs[0], labs[1]);
+          logging.info('res', res);
         }
       }
       /////////////////////////
@@ -356,7 +377,11 @@ class LabManager {
   }
 
   tick (task, creeps, labs, extractors) {
-    return;
+    if (labs.length < 3 || !this.has_terminal_structure) {
+      return;
+    }
+
+    logging.info('ticking');
 
     function *labrat_extractor_bf() {
       let body = []
@@ -407,7 +432,7 @@ class LabManager {
       );
     });
 
-    if (labs.length > 0) {
+    if (labs.length >= 3) {
       logging.info('registering spawn build for labrat_mover');
       this.sm.reg_build(
         'labrat',
