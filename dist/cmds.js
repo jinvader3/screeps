@@ -1,5 +1,6 @@
 const game = require('./game');
 const _ = game._;
+const { logging } = require('./logging');
 
 module.exports.register = function () {
   Memory.ecfg = Memory.ecfg || {};
