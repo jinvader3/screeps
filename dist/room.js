@@ -454,8 +454,12 @@ class Room {
         body.push(game.MOVE);
         body.push(game.CARRY);
         while (true) {
-            body.push(game.WORK);
-            yield body
+            for (let x = 0; x < 2; ++x) {
+              body.push(game.WORK);
+              yield body;
+            }
+            body.push(game.MOVE);
+            yield body;
         }
     }
 
@@ -470,17 +474,18 @@ class Room {
     } 
 
     if (this.sources.length > 0) {
-      this.spawnman.reg_build(
-          'miner',
-          'minera',
-          miner_bf,
-          10,
-          0,
-          1,
-          {
-              s: this.sources[0].id,
-          }
-      );
+      this.spawnman.reg_build2({
+        clazz:      'miner',
+        group:      'minera',
+        build_gf:   miner_bf,
+        max_level:  10,
+        priority:   1,
+        count:      1,
+        memory:     {
+          s: this.sources[0].id,
+        },
+        post_ticks: this.memory.minera_path,
+      });
     }
   
     if (this.spawns.length > 0 && this.sources.length > 1 && this.memory.minerb_path === undefined) {
@@ -701,6 +706,14 @@ class Room {
           return;
       }
     });
+    
+    this.links_nearest_storage = [];
+    if (this.room.storage && this.links.length > 0) {
+      let tmp = _.map(this.links, link => [link, link.pos.getRangeTo(this.room.storage)]);
+      tmp.sort((a, b) => a[1] > b[1] ? 1 : -1);
+      this.links_nearest_storage = [tmp[0][0]]; 
+    }
+
 
     this.csites = this.room.find(game.FIND_CONSTRUCTION_SITES);
     let sources_and_denergy = [];
@@ -771,7 +784,7 @@ class Room {
         [
           // If we have workers.
           this.dt_pull_from_objects_with_stores(
-            0.0, this.links_adj_storage, {},
+            0.0, this.links_nearest_storage, {},
             lst => { 
               lst.sort((a, b) => {
                 return a.store.getUsedCapacity(game.RESOURCE_ENERGY) >
