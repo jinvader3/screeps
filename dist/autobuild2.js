@@ -140,14 +140,32 @@ class AutoBuild2 {
     const moves = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
     const valids = [];
 
+    const all_moves = [
+      [1, 0], [-1, 0], [0, 1], [0, -1],
+      [1, 1], [1, -1], [-1, 1], [-1, -1],
+    ];
+
+    let cx;
+    let cy;
+
+    for (let move of all_moves) {
+      cx = source.pos.x + move[0];
+      cy = source.pos.y + move[1];
+      
+      if (this.room.terrain.get(cx, cy) !== game.TERRAIN_MASK_WALL) {
+        break;
+      }
+    }
+
     this.flood_fill(
-      source.pos.x, source.pos.y,
+      cx, cy,
       moves,
       (nx, ny) => {
         if (this.spot_valid(nx, ny)) {
           valids.push([nx, ny]);
         }
-        return true;
+
+        return this.room.terrain.get(nx, ny) !== game.TERRAIN_MASK_WALL;
       }
     );
 
@@ -190,9 +208,11 @@ class AutoBuild2 {
     }    
 
     const stb = [
-      game.STRUCTURE_SPAWN, game.STRUCTURE_STORAGE,
-      game.STRUCTURE_TOWER, game.STRUCTURE_TERMINAL,
+      game.STRUCTURE_TOWER,
+      game.STRUCTURE_SPAWN, 
+      game.STRUCTURE_STORAGE,
       game.STRUCTURE_EXTENSION, 
+      game.STRUCTURE_TERMINAL,
       game.STRUCTURE_LAB,
       game.STRUCTURE_FACTORY,
     ];
@@ -207,7 +227,7 @@ class AutoBuild2 {
         logging.info('trying to build on spots');
         if (_.some(spots, spot => {
           // Stop on the first valid spot.
-          return this.room.room.createConstructionSite(nx, ny, tb) === game.OK;
+          return this.room.room.createConstructionSite(spot[1], spot[2], tb) === game.OK;
         })) {
           logging.info('successful build');
           // Stop on the first valid spot.
@@ -215,6 +235,53 @@ class AutoBuild2 {
         }
       }
     }  
+  }
+
+  tick_construction_roads () {
+    const room = this.room;
+
+    room.room.memory.roadtrack = room.room.memory.roadtrack || {};
+    const track = room.room.memory.roadtrack;
+
+    // Where are all of the creeps for this room?
+    _.each(room.creeps, creep => {
+      const ground = room.terrain.get(creep.creep.pos.x, creep.creep.pos.y);
+      const i = creep.creep.pos.x + creep.creep.pos.y * 50;
+      if (ground === game.TERRAIN_MASK_SWAMP) {
+        track[i] = track[i] === undefined ? 1 : track[i] + 1;
+      }
+    });
+
+    _.each(track, (v, k) => {
+      track[k] -= 0.01;
+      if (track[k] <= 0) {
+        track[k] = undefined;
+      }
+
+      let y = Math.floor(k / 50);
+      let x = k - y * 50;
+
+      if (track[k] > 30.0) {
+        room.room.visual.rect(x - 0.5, y - 0.5, 1, 1, { fill: 'orange' });
+      }
+    });
+
+    if (room.csites.length > 0) {
+      return;
+    }
+
+    _.some(track, (v, k) => {
+      let y = Math.floor(k / 50);
+      let x = k - y * 50;
+
+      if (v > 30.0) {
+        if (!_.some(room.roads, r => r.pos.isEqualTo(x, y))) {
+          room.room.createConstructionSite(x, y, game.STRUCTURE_ROAD);
+          return true;
+        }
+      }
+      return false;
+    });
   }
 
   tick () {
@@ -225,6 +292,7 @@ class AutoBuild2 {
 
     if (this.room.memory.plan !== undefined) {
       logging.info('plan already built');
+      this.tick_construction_roads();
       this.follow_plan()
       return;
     }

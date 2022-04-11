@@ -24,12 +24,29 @@ class CreepMiner extends Creep {
       return null;
     }
 
-    let links = _.filter(
-      stor.pos.findInRange(game.FIND_STRUCTURES, 1.8), struct => {
-      return struct.structureType === game.STRUCTURE_LINK;
-    });
+    let links = _.map(this.room.links, link => [link, link.pos.getRangeTo(stor)]);
 
-    return links.length > 0 ? links[0] : null;    
+    if (links.length === 0) {
+      return null;
+    }
+
+    links.sort((a, b) => a[1] > b[1] ? 1 : -1);
+
+    return links[0][0];
+  }
+
+  will_i_send_energy_toward_spawn (my_cont) {
+    if (this.room.links.length < 2) {
+      // No other possibility.
+      return false;
+    }
+
+    // Check if the link we will use is the link nearest
+    // to the storage and IF it is THEN we will be sending
+    // energy toward storage/spawn.
+    let la = this.find_link_near_container(my_cont);
+    let lb = this.find_link_near_storage();
+    return la.id !== lb.id;
   }
 
   find_link_near_container (cont) {
@@ -41,13 +58,18 @@ class CreepMiner extends Creep {
     return links.length > 0 ? links[0] : null;
   }
 
+  get_my_source () {
+    let source_id = this.creep.memory.s;
+    let source = game.getObjectById()(source_id);
+    return source;
+  }
+
   tick () {
     logging.debug('tick');
 
-    let source_id = this.creep.memory.s;
-    let source = game.getObjectById()(source_id);
+    const source = this.get_my_source();
 
-    logging.debug(`source_id:${source_id} source:${source}`);
+    logging.debug(`source_id:${source.id} source:${source}`);
 
     if (!source) {
       logging.debug('no valid source');
@@ -60,16 +82,19 @@ class CreepMiner extends Creep {
     }
 
     // Look for chest around the source.
-    let cont = this.find_container_near_source(source);
+    const cont = this.find_container_near_source(source);
     logging.debug(`cont:${cont}`);
 
     if (cont) {
-      let link = this.find_link_near_container(cont);
-      let dlink = this.find_link_near_storage();
+      const link = this.find_link_near_container(cont);
+      const dlink = this.find_link_near_storage();
+      const send_energy = this.will_i_send_energy_toward_spawn(cont);
+
+      logging.debug(`send_energy=${send_energy}`);
 
       if (!link) {
         if (this.room.csites.length === 0) {
-          let pos = this.creep.pos;
+          const pos = this.creep.pos;
           let x = pos.x;
           let y = pos.y;
           let jmp = [-1, 1];
@@ -87,6 +112,14 @@ class CreepMiner extends Creep {
         this.move_to(cont);
       } else {
         this.creep.harvest(source);
+        if (send_energy) {
+          this.creep.transfer(link, game.RESOURCE_ENERGY);
+          if (link.cooldown === 0 && 
+              link.isActive() && 
+              link.store.getUsedCapacity(game.RESOURCE_ENERGY) > 0) {
+            logging.info('link.transfer', link.transferEnergy(dlink));
+          }
+        }
       }
     } else {
       let res = this.creep.harvest(source);
