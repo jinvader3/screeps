@@ -42,7 +42,7 @@ class Reg {
         }
 
         let cnt = 1;
-        let best = null;
+        let best = [];
         for (let build of this.build_gf()) {
             let cost = _.sumBy(build, part => {
                 switch (part) {
@@ -118,6 +118,11 @@ class SpawnManager {
             let res = reg.get_max_level(max_energy, reg.max_level)
             let body = res.body;
             let level = res.level;
+
+            if (body === null) {
+              console.log(JSON.stringify(reg));
+            }
+  
             let time_to_spawn = body.length * 3;
 
             let count_mul; 
