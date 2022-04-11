@@ -6,10 +6,15 @@ This is a personal Screeps bot.
 
 The bot is controlled from the console. I know some people use flags but I find those problematic if you want to parameterize them. For example, you drop a flag and you want to set some settings for it. You still need a way to edit some kind of configuration. Also, there could be some really good solutions using external tools. But, I wanted to keep everything as native client as possible. Therefore, I use JavaScript console commands. At a later time, one could extend the console to an external tool and it could just call these commands directly if it needed.
 
-* Game.ops_list()
+* `Game.ops_list()`
   * Displays a list of current active operations.
-* Game.ops_del(home_room, mod_name, index)
+* `Game.ops_del(home_room, mod_name, index)`
   * Delete an active operation using its home room, module name, and index from the list.
+* `Game.autobuild_on(room_name)`
+  * Activates version one (obsolete) autobuild. Does not always build labs correctly!
+* `Game.autobuild_off(room_name)`
+* `Game.autobuild2(room_name, true_or_false)`
+  * Using `true_or_false` it activates or deactivates version two of autobuild.
 
 ### Design
 
@@ -20,6 +25,12 @@ The bot uses a task based approach. It uses tasks for error isolation and CPU us
 #### Room Planner
 
 The room is an independent highest level planner. There might be one more level above the room added at a later time. If it is then it will control colonizing new rooms and maybe even expeditions to grab resources out on the highways. Until then, the room controls all functions and the the creeps tick/execute to carry out the orders. The interface between the room and most of the creeps is a decision tree. Other creeps may use a single order simplier form such as : miners.
+
+#### AutoBuild
+
+There are two versions of the component known as auto-build. The version one, obsolete, `autobuild.js` and the version two `autobuild2.js`. Both, automatically create the construction sites to facilitate base building. The difference is that version two has more reliable and better labratory building support. Version one tries to build labs in groups of three but there are cases where it can get stuck and can't build a group of three when it should have. Version two attempts to improve on version one by building all ten labs in a chain so that they can be linked together in an assembly line fashion if desired. Also, version two preplans the entire room so its simple to check and see exactly where things will be built.
+
+Both auto-builds use a honeycomb pattern. This pattern seems to have a good balance between being easy to code and flexible enough for most any room. I hope later on to be able to support some of the other patterns that I see other players using.
 
 #### Decision Tree
 
@@ -42,7 +53,7 @@ For some clarification of:
   - `creepgw.js` module
   - `room.js`'s dt_ functions
 
-The `creepgw.js` module just implements a basic go put something here or get somethign from there autonomy for a creep. It allows a fire and forget approach for which the creep will accomplish some of the most basic tasks until completed _or attempted at least once with a oneshot flag set_.
+The `creepgw.js` module just implements a basic go put something here or get something from there autonomy for a creep. It allows a fire and forget approach for which the creep will accomplish some of the most basic tasks until completed _or attempted at least once with a oneshot flag set_.
 
 The decision tree logic is implemented in `room.js` under the `dt_*` family of functions for which `creepgw` (general worker) creep recives two functions and calling either one presents a target. Therefore, the general worker creep does not know or udnerstand decision trees as they are purely a concept and feature of the room planner itself. The general worker only understands targets and actions it should go and perform until exhausted or energy or full of energy.
 

@@ -91,12 +91,12 @@ class LabManager {
     }
   }
   
-  maintain_credits (term_obj) {
+  maintain_credits (term_obj, task) {
     // Try to sell things to maintain at least 50K in credits. BUT, _only_ if there
     // are no active component orders. If there are active component orders then the
     // terminal may be receiving parts for these orders and we don't want it selling
     // those as soon as they come in.
-    if (this.comp_orders.length === 0 && game.market().credits < 1000) {
+    if (this.comp_orders.length === 0 && game.market().credits < 10000) {
       let ctask = task.spawn_isolated(8, `terminal_seller`, ctask => {
         for (let rtype in term_obj.store) {
           if (rtype === game.RESOURCE_ENERGY) {
@@ -144,7 +144,7 @@ class LabManager {
     });
   }
 
-  clear_labs_out (labs, mover) {
+  clear_labs_out (labs, mover, term_obj) {
     let lab0_what = Object.keys(labs[0].store)[0];
     let lab1_what = Object.keys(labs[1].store)[0];
     let lab2_what = Object.keys(labs[2].store)[0];
@@ -290,7 +290,7 @@ class LabManager {
     }
 
     // Do any selling to generate needed credits.
-    this.maintain_credits(term_obj);
+    this.maintain_credits(term_obj, task);
     // Do the buying for current orders.
     this.comp_order_deals(term_obj); 
 
@@ -308,7 +308,6 @@ class LabManager {
       this.comp_order_execute(labs, term_obj, next_comp_order, mover);
     } else {
       this.clear_labs_out(labs, mover, term_obj);
-
       logging.info('Clearing out component orders since there is no valid next order.');
       while (this.comp_orders.length > 0) {
         let e = this.comp_orders.pop();
@@ -374,10 +373,20 @@ class LabManager {
 
       for (let k in to_buy) {
         logging.debug(`to_buy ${k}=${to_buy[k]}`);
+
+        // Calculate how much is in the labs at this moment.
+        const amount_in_labs = _.sumBy(labs, lab => {
+          const what = Object.keys(lab.store)[0];
+          if (what !== k) {
+            return 0;
+          }
+          return lab.store.getUsedCapacity(k);
+        });
+
         comp_orders.push({
           action: 'buy',
           what: k,
-          count: to_buy[k] - term_obj.store.getUsedCapacity(k),
+          count: to_buy[k] - term_obj.store.getUsedCapacity(k) - amount_in_labs,
         });
       }
 

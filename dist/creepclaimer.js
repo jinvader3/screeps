@@ -145,6 +145,8 @@ class CreepClaimer extends Creep {
       logging.log(`claimController = ${res}`);
       if (res === game.ERR_NOT_IN_RANGE) {
         this.creep.moveTo(croom.controller, { reusePath: 20 });
+      } else if (res === game.ERR_INVALID_TARGET) {
+        this.creep.attackController(croom.controller);
       }
     } else {
       if (!croom.controller.my) {
