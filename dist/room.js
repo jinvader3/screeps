@@ -305,7 +305,12 @@ class Room {
       body.push(game.CARRY);
       body.push(game.MOVE);
       while (true) {
-        body.push(game.WORK);
+        for (let x = 0; x < 3; ++x) {
+          body.push(game.WORK);
+          yield body;
+        }
+
+        body.push(game.MOVE);
         yield body;
       }
     }
@@ -830,7 +835,7 @@ class Room {
           this.dt_push_to_objects_with_stores(1.0, this.spawns.concat(this.exts)),
           this.dt_push_to_objects_with_stores(1.0, this.towers),
           this.dt_push_to_objects_with_stores(1.0, this.active_containers_adj_controller),
-          this.dt_push_storage(100000),
+          this.dt_push_storage(1000000),
         ]
       ),
     ];
