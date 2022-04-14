@@ -650,7 +650,7 @@ class Room {
     return m.aconts[cont.id] === 'on';
   }
 
-  tick (task) {
+  tick_populate_lists () {
     // The `tick_need_spawn` will populate this.
     let denergy = _.filter(this.room.find(game.FIND_DROPPED_RESOURCES), 
       i => i.resourceType === game.RESOURCE_ENERGY
@@ -729,6 +729,12 @@ class Room {
 
     // Quick and dirty tower code.
     this.hcreeps = this.room.find(game.FIND_HOSTILE_CREEPS);
+  }
+
+  tick (task) {
+    // Enumerate different structures and sort them into lists for usage.
+    this.tick_populate_lists();
+
     let valid_hcreeps = _.filter(this.hcreeps, hcreep => {
       if (this.gecfg.ally[hcreep.owner.username] !== undefined) {
         return false;
@@ -745,7 +751,6 @@ class Room {
     if (this.spawns.length > 0) {
       this.tick_need_spawn();
     }
-
  
     // This is the decision tree for energy pushes. Where do I take
     // the energy to?

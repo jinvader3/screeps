@@ -6,36 +6,37 @@
     Goals :
     - This module defines the global variable 'ALLIANCE' which corresponding to the list of users in your alliance.
     - This module creates an 'InterPlayer' object available thanks to the global variable 'MESSENGER'.
-      This object contain some method to communicate with other player in the game.
+      This object contain some method to communicate with other user in the game.
 
     Installation :
     To run this module, you have to :
-        - Import the 'communication.player' module in the main function.
+        - Import the 'communication.user' module in the main module.
         - Write the following command in 'module.exports.loop' of the main module : MESSENGER.run(myUserName, audience);
             + myUserName : a string corresponding to your user name in the game.
             + audience : list of names of players you want to communicate with on a regular basis (default value is alliance users).
     
     The methods :
     Here are the useful methods of the object 'InterPlayer' :
-        - send : this method allows you to 'send' a message to an other player (they have 50 ticks to reply). It needs the following arguments :
-            + recipients : a string or a list of strings containing names of the player who you want to send a message.
-            + subject : a string used as a keyword to translate the message.
+        - send : this method allows you to 'send' a message to an other user (they have 50 ticks to reply). It needs the following arguments :
+            + recipients : a string or a list of strings containing names of the user who you want to send a message.
+            + subject : a string used as a keyword to chose the function which translate the message.
             + body : string/object/list/... it's your message, it can be what you want.
-            + id   : an optional string. If it's defined, the program will consider that the message is waiting for a response.
-                    Once received, it will be stored in 'MESSENGER.message[id]'.
-        - listen : this method allows to read the segment of a player. Usable even if he does't share the same communication protocol.
-            + username  : the name of the player who you want to read the segment.
+            + id   : an optional string. If it's defined, the program will consider that the message is waiting for a reply.
+                     Once received, it will be stored in 'MESSENGER.message[id]'.
+        - listen : this method allows to read the segment of a user. Usable even if he does't share the same communication protocol.
+            + username  : the name of the user who you want to read the segment.
             + segment   : the id of the segment.
             + id        : an optional string. If it's set, the content of the scanned segment will be stored in 'MESSENGER.message[id]'.
                           Otherwise it will be displayed in the console.
-        - notify : this method transmits information to all players whose validity is durable over time (such as for example prevent that one is at war)
+        - notify : this method transmits informations to all players. A notification is read as a persistant message (only the user can delete a notification)
             + tag     : a string to access players' reactions in the variable MESSENGER.notification[tag] and
                         to be able to redefine the notification using the 'notify' method again.
             + subject : a string uses to link the notification to a function to translate it
                         (delete the notification corresponding to the 'tag' if subject is undefined).
             + body    : string/object/... it's a data about what you want to notify, it can be what you want.
         - getAlliance : this method enable to get the name and users in a specific alliance.
-                        Please enter the following command in the console to learn more : MESSENGER.getAlliance();
+                        If you know the name of the alliance which interrest you, use the following command : MESSENGER.getAlliance('alliance', <allianceName>);
+                        If you know a user and you want check his alliance, use the following command : MESSENGER.getAlliance('user', <userName>);
     
     Notes :
         - Segment 0 is, by default, the default segment.
@@ -56,10 +57,21 @@ function reply(mySegment, sender, message) {
     switch(message.subject) {
 
         // Request to use a command line :
-        case 'eval': return Eval(mySegment, sender, message, ['Harlem', 'Balthael', 'Aethercyn']); // TODO: complete the last argument, it is the list of userName allow to use command lines
+        case 'eval': return Eval(mySegment, sender, message, ['Harlem','Balthael','Aethercyn']); // TODO: set the last argument, it is the list of userName allow to use command lines
 
         // Print the message in the console :
-        case 'print': return console.log("[communication.player] " + sender + " : " + data);
+        case 'print': return console.log("[communication.user] " + sender + ": " + data);
+
+
+
+
+        
+
+
+
+
+        
+
     }
 
     // If the subject is unknown, an error is returned :
@@ -84,11 +96,12 @@ function InterPlayer() {
     RawMemory.setPublicSegments([0,51]);
     RawMemory.setDefaultPublicSegment(0);
     RawMemory.setActiveForeignSegment(null);
-    if(!RawMemory.segments[51]) RawMemory.segments[51] = '{ "__notification__": {} }';
-    else for(let notification in JSON.parse(RawMemory.segments[51] || '{}')['__notification__'] || {}) this.notification[notification] = {};
+    delete Memory.alliance;
+    if(!RawMemory.segments[51]) RawMemory.segments[51] = "{ '__notification__': {} }";
+    else for(let tag in JSON.parse(RawMemory.segments[51] || '{}')['__notification__'] || {}) this.notification[tag] = {};
 }
 
-// To listen to a player :
+// To listen to a user :
 let speaker, listen = [];
 
 
@@ -98,7 +111,7 @@ let speaker, listen = [];
 
 
 // The main method :
-InterPlayer.prototype.run = function(myUserName, audience = (ALLIANCE || [])) {
+InterPlayer.prototype.run = function(myUserName, audience = ALLIANCE) {
 
     // Get my segment :
     let mySegment = JSON.parse(RawMemory.segments[51] || '{}');
@@ -107,14 +120,14 @@ InterPlayer.prototype.run = function(myUserName, audience = (ALLIANCE || [])) {
     let foreignSegment = getForeignSegment(mySegment, audience);
     if(!foreignSegment) return nextSpeaker(myUserName, audience);
 
+    // Read general informations about the user :
+    readNotification(myUserName, mySegment, audience, foreignSegment);
+
     // Read the messages addressed to us :
     readMessage(myUserName, mySegment, audience, foreignSegment);
 
     // Deleting messages sent to our interlocutor that have been read or are too old :
     deleteMessage(myUserName, mySegment, foreignSegment);
-
-    // Read general informations about the player :
-    readNotification(myUserName, mySegment, audience, foreignSegment);
     
     // We save the changes we made to our segment 51 :
     RawMemory.segments[51] = JSON.stringify(mySegment);
@@ -122,7 +135,7 @@ InterPlayer.prototype.run = function(myUserName, audience = (ALLIANCE || [])) {
     // Update the list of users belonging to our alliance :
     updateAlliance(myUserName);
 
-    // Set the player and the segment number that will be played at the next tick :
+    // Set the user and the segment number that will be played at the next tick :
     nextSpeaker(myUserName, audience);
 
 }
@@ -176,7 +189,7 @@ function getForeignSegment(mySegment, audience) {
         }
         else {
             if(speaker.id) delete MESSENGER.message[speaker.id][speaker.username];
-            else console.log("[communication.player] Error: The segment N°" + speaker.segment + " of the player " + speaker.username + " is not public.");
+            else console.log("[communication.user] Error, the segment N°" + speaker.segment + " of the user '" + speaker.username + "' is not public.");
         }
         RawMemory.segments[51] = JSON.stringify(mySegment);
         return;
@@ -188,7 +201,7 @@ function getForeignSegment(mySegment, audience) {
         data = JSON.parse(foreignSegment.data || '{}');
     } catch(e) {
         if(speaker && speaker.id) MESSENGER.message[speaker.id] = foreignSegment.data;
-        else console.log("[communication.player] Error: The following message from the segment N°" + foreignSegment.id + " of the player " + foreignSegment.username + " couldn't be parsered :\n" + foreignSegment.data);
+        else console.log("[communication.user] Error, the following data from the segment N°" + foreignSegment.id + " of the user '" + foreignSegment.username + "' couldn't be parsered :\n" + foreignSegment.data);
         return;
     }
 
@@ -199,15 +212,16 @@ function getForeignSegment(mySegment, audience) {
 }
 
 
-// Read general informations about the foreign player :
+// Read general informations about the foreign user :
 function readNotification(myUserName, mySegment, audience, foreignSegment) {
 
-    // If the foreign player doesn't use the same communication protocol :
+    // If the foreign user doesn't use the same communication protocol :
     if(speaker && !_.includes(audience, foreignSegment.username) || foreignSegment.username == myUserName) return;
 
-    // Read general informations about the foreign player :
-    let reply;
-    for(let notification of Object.values(foreignSegment.data['__notification__'] || {})) {
+    // Read general informations about the foreign user :
+    let reply, notifications = Object.values(foreignSegment.data['__notification__'] || {});
+    if(!mySegment[foreignSegment.username]) mySegment[foreignSegment.username] = {messages : [], read : 0};
+    for(let notification of notifications) {
         reply = getReply(mySegment, foreignSegment.username, notification);
         if(reply) {
             mySegment[foreignSegment.username].messages.push({
@@ -225,110 +239,109 @@ function readNotification(myUserName, mySegment, audience, foreignSegment) {
 // Function to read a segment :
 function readMessage(myUserName, mySegment, audience, foreignSegment) {
 
-    // Check if the foreign player uses the same communication protocol :
+    // Check if the foreign user uses the same communication protocol :
     if(!speaker || _.includes(audience, foreignSegment.username)) {
 
         // Check if messages that are explicitly addressed to us :
-        if(foreignSegment.data[myUserName]) {
+        if(!foreignSegment.data[myUserName]) return;
 
-            let reply;
-            if(!mySegment[foreignSegment.username]) mySegment[foreignSegment.username] = {messages : [], read : 0};
+        // Initializes the object containing the replies to the received messages :
+        if(!mySegment[foreignSegment.username]) mySegment[foreignSegment.username] = {messages : [], read : 0};
 
-            // Read messages :
-            for(let message of foreignSegment.data[myUserName].messages) {
+        // Read messages and reply :
+        let reply;
+        for(let message of foreignSegment.data[myUserName].messages) {
 
-                // We ignore messages already read :
-                if(message.date < mySegment[foreignSegment.username].read || message.date >= Game.time) continue;
-                
-                // If a delayed answer is sent :
-                if(message.subject == '__processing__') {
-                    reply = getReply(mySegment, message.body.sender, message.body);
-                    if(!_.isNull(reply)) {
-                        mySegment[message.body.sender].messages.push({
-                            subject: '__reply__',
-                            body: reply,
-                            id: message.body.id,
-                            date: Game.time,
-                        });
-                    }
-                    else if(Game.time - message.body.date < 50) {
+            // We ignore messages already read :
+            if(message.date < mySegment[foreignSegment.username].read || message.date >= Game.time) continue;
+            
+            // If a delayed answer is sent :
+            if(message.subject == '__processing__') {
+                reply = getReply(mySegment, message.body.sender, message.body);
+                if(!_.isNull(reply)) {
+                    mySegment[message.body.sender].messages.push({
+                        subject: '__reply__',
+                        body: reply,
+                        id: message.body.id,
+                        date: Game.time,
+                    });
+                }
+                else if(Game.time - message.body.date < 50) {
+                    mySegment[myUserName].messages.push({
+                        subject: '__processing__',
+                        body: message.body,
+                        date: Game.time,
+                    });
+                }
+                else {
+                    console.log("[communication.user] Error: The response time to the following message sent by " + message.body.sender + " is over :\n" + JSON.stringify(message.body, null, 4));
+                    mySegment[message.body.sender].messages.push({
+                        subject: '__reply__',
+                        body: undefined,
+                        id: message.body.id,
+                        date: Game.time,
+                    });
+                }
+            }
+
+            // If we receive a response :
+            else if(message.subject == '__reply__') {
+                if(!MESSENGER.message[message.id]) continue;
+                else MESSENGER.message[message.id][foreignSegment.username] = message.body;
+            }
+            
+            // If a user reacts to one of our notifications :
+            else if(message.subject == '__notify__') {
+                if(!MESSENGER.notification[message.tag]) continue;
+                else MESSENGER.notification[message.tag][foreignSegment.username] = message.body;
+            }
+
+            // If we send a reply :
+            else {
+                reply = getReply(mySegment, foreignSegment.username, message);
+                if(message.id) {
+                    if(_.isNull(reply)) {
+                        message.sender = foreignSegment.username;
                         mySegment[myUserName].messages.push({
                             subject: '__processing__',
-                            body: message.body,
+                            body: message,
                             date: Game.time,
                         });
                     }
                     else {
-                        console.log("[communication.player] Error: The response time to the following message sent by " + message.body.sender + " is over :\n" + JSON.stringify(message.body, null, 4));
-                        mySegment[message.body.sender].messages.push({
+                        mySegment[foreignSegment.username].messages.push({
                             subject: '__reply__',
-                            body: undefined,
-                            id: message.body.id,
+                            body: reply,
+                            id: message.id,
                             date: Game.time,
                         });
                     }
                 }
-    
-                // If we receive a response :
-                else if(message.subject == '__reply__') {
-                    if(!MESSENGER.message[message.id]) continue;
-                    else MESSENGER.message[message.id][foreignSegment.username] = message.body;
-                }
-                
-                // If a player reacts to one of our notifications :
-                else if(message.subject == '__notify__') {
-                    if(!MESSENGER.notification[message.tag]) continue;
-                    else MESSENGER.notification[message.tag][foreignSegment.username] = message.body;
-                }
-    
-                // If we send a reply :
-                else {
-                    reply = getReply(mySegment, foreignSegment.username, message);
-                    if(message.id) {
-                        if(_.isNull(reply)) {
-                            message.sender = foreignSegment.username;
-                            mySegment[myUserName].messages.push({
-                                subject: '__processing__',
-                                body: message,
-                                date: Game.time,
-                            });
-                        }
-                        else {
-                            mySegment[foreignSegment.username].messages.push({
-                                subject: '__reply__',
-                                body: reply,
-                                id: message.id,
-                                date: Game.time,
-                            });
-                        }
-                    }
-                }
-    
             }
 
-            // Update the last time you read the segment of this foreign player :
-            mySegment[foreignSegment.username].read = Game.time;
-
         }
-        
+
+        // Update the last time you read the segment of this foreign user :
+        mySegment[foreignSegment.username].read = Game.time;
+    
     }
 
-    // Read the segment of a player who does not share the same communication protocol :
+    // Read the segment of a user who does not share the same communication protocol :
     else {
-        if(speaker.id) MESSENGER.message[speaker.id][foreignSegment.username] = foreignSegment.data;
-        else console.log("[communication.player] Here is the content of the segment N°" + foreignSegment.id + " of the player '" + foreignSegment.username + "' :\n" + JSON.stringify(foreignSegment.data, null, 4));
+        if(!speaker.id) console.log("[communication.user] Here is the content of the segment N°" + foreignSegment.id + " of the user '" + foreignSegment.username + "' :\n" + JSON.stringify(foreignSegment.data, null, 4));
+        else if(MESSENGER.message[speaker.id]) MESSENGER.message[speaker.id][foreignSegment.username] = foreignSegment.data;
     }
     
 }
 
 
-// Function that defines the player and the segment number that will be listened to at the next tick :
+// Function that defines the user and the segment number that will be listened to at the next tick :
 function nextSpeaker(myUserName, audience) {
     speaker = listen.shift();
     let index = Game.time%(audience.length + 1);
     if(speaker) RawMemory.setActiveForeignSegment(speaker.username, speaker.segment);
     else if(index == audience.length) RawMemory.setActiveForeignSegment(myUserName, 51);
-    else RawMemory.setActiveForeignSegment(audience[index], 51);
+    else RawMemory.setActiveForeignSegment(audience[index] || myUserName, 51);
 }
 
 
@@ -346,12 +359,12 @@ function getReply(mySegment, sender, message) {
 function error(mySegment, sender, message, eStack) {
 
     // You receive an error message :
-    console.log("[communication.player] Error: The following message sent by '" + sender + "' coudn't be translate :\n" + JSON.stringify(message, null, 4) + ((eStack)? '\n\nHere is the reason : ' + eStack : ''));
+    console.log("[communication.user] Error: The following message sent by '" + sender + "' coudn't be translate :\n" + JSON.stringify(message, null, 4) + '\n\nHere is the reason : ' + eStack);
                 
-    // The sending player will receive an error message :
+    // The sending user will receive an error message :
     mySegment[sender].messages.push({
         subject: 'print',
-        body: "Error, the following message you sent me coudn't be translate :\n" + JSON.stringify(message, null, 4) + ((eStack)? '\n\nHere is the reason : ' + eStack : ''),
+        body: "Error, the following message you sent me coudn't be translate :\n" + JSON.stringify(message, null, 4) + '\n\nHere is the reason : ' + eStack,
         date: Game.time,
     });
 
@@ -389,7 +402,7 @@ InterPlayer.prototype.listen = function(username, segment, id) {
 }
 
 
-// Method to 'send' a personal message to a player.
+// Method to 'send' a personal message to a user.
 InterPlayer.prototype.send = function(recipients, subject, body, id) {
 
     // Can not wait a reply if 'id' is already used :
@@ -416,7 +429,7 @@ InterPlayer.prototype.send = function(recipients, subject, body, id) {
 
     // Update segment data :
     RawMemory.segments[51] = JSON.stringify(mySegment);
-    if(id) return this.message[id];
+    return (id)? this.message[id] : {};
     
 }
 
@@ -458,14 +471,14 @@ InterPlayer.prototype.notify = function(tag, subject, body) {
 
 
 // The list of users belonging to our alliance :
-global.ALLIANCE = null;
+global.ALLIANCE = [];
 
 
 // To get some alliance data :
-InterPlayer.prototype.getAlliance = function(type, name, id) {
+InterPlayer.prototype.getAlliance = function(type, name) {
 
     // Get alliance data :
-    id = id || 'getAlliance_' + type + '_' + name;
+    let id = 'getAlliance_' + type + '_' + name;
     let alliances = this.listen('LeagueOfAutomatedNations', 99, id);
     if(!alliances) return;
     delete this.message[id];
@@ -483,7 +496,7 @@ InterPlayer.prototype.getAlliance = function(type, name, id) {
 
         case 'alliance': return {name: name, users: alliances[name] || []};
 
-        default: return console.log("[communication.player] Error, the 'getAlliance' method received unknown 'type' argument.");
+        default: return console.log("[communication.user] Error, the 'getAlliance' method received unknown 'type' argument.");
 
     }
 
@@ -494,16 +507,14 @@ InterPlayer.prototype.getAlliance = function(type, name, id) {
 
 // Update the list of users belonging to our alliance :
 function updateAlliance(myUserName) {
-
-    if(Game.time%5000 < 2 || !_.has(Memory, 'alliance') || !ALLIANCE) {
-        let data = (Memory.alliance)? MESSENGER.getAlliance('alliance', Memory.alliance, 'ALLIANCE') : MESSENGER.getAlliance('user', myUserName, 'ALLIANCE');
+    if(Game.time%5000 == 0 || !_.has(Memory, 'alliance')) {
+        let data = MESSENGER.getAlliance('user', myUserName);
+        delete Memory.alliance;
         if(data) {
             ALLIANCE = data.users || [];
             Memory.alliance = data.name || null;
         }
-        else if(!ALLIANCE) {ALLIANCE = []; delete Memory.alliance;}
     }
-
 }
 
 
@@ -515,16 +526,9 @@ function updateAlliance(myUserName) {
 // Function to execute a command line :
 function Eval(mySegment, sender, message, users = []) {
 
-    if(_.includes(users, sender)) {
-      mySegment[sender].messages.push({
-          subject: 'print',
-          body: "I am going to allow you to execute this command, lol. I saw the code and modified it.",
-          date: Game.time,
-      });
-      return eval(message.body);
-    }
+    if(_.includes(users, sender)) return eval(message.body);
     
-    console.log("[communication.player] The following command line instruction sent by " + sender + " was rejected as he has no authorization :\n" + JSON.stringify(message.body, null, 4));
+    console.log("[communication.user] The following command line instruction sent by " + sender + " was rejected as he has no authorization :\n" + JSON.stringify(message.body, null, 4));
     mySegment[sender].messages.push({
         subject: 'print',
         body: "You are not allowed to send me command lines.",

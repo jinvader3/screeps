@@ -4,11 +4,10 @@ const { Room } = require('./room');
 const { TaskEngine } = require('./task');
 const { Stats } = require('./stats');
 const { logging } = require('./logging');
-const { guimenu } = require('./guimenu');
 const cmds = require('./cmds');
 
 // Harlem's communication module. It registers global variables.
-require('./communication.player');
+require('./communication.user');
 
 module.exports.rooms = {};
 
