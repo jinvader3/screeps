@@ -6,15 +6,7 @@ This is a personal Screeps bot.
 
 The bot is controlled from the console. I know some people use flags but I find those problematic if you want to parameterize them. For example, you drop a flag and you want to set some settings for it. You still need a way to edit some kind of configuration. Also, there could be some really good solutions using external tools. But, I wanted to keep everything as native client as possible. Therefore, I use JavaScript console commands. At a later time, one could extend the console to an external tool and it could just call these commands directly if it needed.
 
-* `Game.ops_list()`
-  * Displays a list of current active operations.
-* `Game.ops_del(home_room, mod_name, index)`
-  * Delete an active operation using its home room, module name, and index from the list.
-* `Game.autobuild_on(room_name)`
-  * Activates version one (obsolete) autobuild. Does not always build labs correctly!
-* `Game.autobuild_off(room_name)`
-* `Game.autobuild2(room_name, true_or_false)`
-  * Using `true_or_false` it activates or deactivates version two of autobuild.
+Just use `Game.help()` to get a display of all the commands. _At least_, the commands that have been documented! See `cmds.js` for all of the actual commands.
 
 ### Design
 
