@@ -1008,6 +1008,10 @@ class Room {
     }
   }
 
+  ////////////////////////////////////////////////
+  // DECISION TREE FAMILY OF FUNCTIONS         
+  ////////////////////////////////////////////////
+
   dt_pull_storage (oneshot) {
     return (creep) => {
       if (!this.room.storage) {

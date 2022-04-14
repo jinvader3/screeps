@@ -194,54 +194,53 @@ class LabManager {
       logging.info(`Lab-Output=${next_comp_order.output}`);
       logging.info(`lab2_what=${lab2_what} lab1_what=${lab1_what} lab0_what=${lab0_what}`);
 
-      if (lab2_what === undefined || lab2_what === next_comp_order.output) {          
-      } else {
-        logging.info('lab2 has the wrong product in it');
-        mover.stmh_set('move_product_outof_lab_c', ss => {
-          mover.stmh_dump_store_to_object(ss, this.room.get_storage());
-          mover.stmh_load_resource_from_store(ss, labs[2], lab2_what);
-          mover.stmh_dump_store_to_object(ss, term_obj);
-          return true;
-        });    
+      function move_product_out_of_lab (name, lab) {
+        const lab_what = Object.keys(lab.store)[0];
+        if (lab_what) {
+          mover.stmh_set(name, ss => {
+            mover.stmh_dump_store_to_object(ss, this.room.get_storage());
+            mover.stmh_load_resource_from_store(ss, lab, lab_what);
+            mover.stmh_dump_store_to_object(ss, term_obj);
+            return true;
+          });
+        }    
       }
 
-      if (lab0_what === undefined || lab0_what === next_comp_order.inputs[0]) {          
+      function move_product_into_lab (name, lab, what) {
         if (term_obj.store.getUsedCapacity(next_comp_order.inputs[0]) > 0) {
           logging.info('moving product into lab0');
-          mover.stmh_set('move_product_into_lab_aa', ss => {
+          mover.stmh_set(name, ss => {
             mover.stmh_dump_store_to_object(ss, this.room.get_storage());
             mover.stmh_load_resource_from_store(ss, term_obj, next_comp_order.inputs[0]);
             mover.stmh_dump_store_to_object(ss, labs[0]);
             return true;
           });
         }
+      }
+
+      function lab_ready_for_io (lab, what) {
+        const lab_what = Object.keys(lab.store)[0];
+        return lab_what === undefined || lab_what === what;
+      }
+
+      if (lab_ready_for_io(labs[2], next_comp_order.output)) {
+      } else {
+        logging.info('lab2 has the wrong product in it');
+        move_product_out_of_lab('mpoolc', labs[2]);
+      }
+
+      if (lab_ready_for_io(labs[0], next_comp_order.inputs[0])) {
+        move_product_into_lab('mpila', labs[0], next_comp_order.inputs[0]);
       } else {
         logging.info('lab0 has the wrong product in it');
-        mover.stmh_set('move_product_outof_lab_a', ss => {
-          mover.stmh_dump_store_to_object(ss, this.room.get_storage());
-          mover.stmh_load_resource_from_store(ss, labs[0], lab0_what);
-          mover.stmh_dump_store_to_object(ss, term_obj);
-          return true;
-        });    
+        move_product_out_of_lab('mpoola', labs[0]);
       }
-     
-      if (lab1_what === undefined || lab1_what === next_comp_order.inputs[1]) { 
-        if (term_obj.store.getUsedCapacity(next_comp_order.inputs[1]) > 0) {
-          mover.stmh_set('move_product_into_lab_b', ss => {
-            mover.stmh_dump_store_to_object(ss, this.room.get_storage());
-            mover.stmh_load_resource_from_store(ss, term_obj, next_comp_order.inputs[1]);
-            mover.stmh_dump_store_to_object(ss, labs[1]);
-            return true;
-          });
-        }
+      
+      if (lab_ready_for_io(labs[1], next_comp_order.inputs[1])) {
+        move_product_into_lab('mpilb', labs[1], next_comp_order.inputs[1]);
       } else {
         logging.info('lab1 has the wrong product in it');
-        mover.stmh_set('move_product_outof_lab_b', ss => {
-          mover.stmh_dump_store_to_object(ss, this.room.get_storage());
-          mover.stmh_load_resource_from_store(ss, labs[1], lab1_what);
-          mover.stmh_dump_store_to_object(ss, term_obj);
-          return true;
-        });
+        move_product_out_of_lab('mpoolb', labs[1]);
       }
         
       // If both input labs have the correct product and the output lab is cooled down
@@ -294,7 +293,9 @@ class LabManager {
     // Do the buying for current orders.
     this.comp_order_deals(term_obj); 
 
-    // Look for next non-zero count component order of action 'combine'.
+    //////////////////////////////////////////////////////////////////////
+    // Look for next non-zero count component order of action 'combine'.//
+    //////////////////////////////////////////////////////////////////////
     let next_comp_order = null;
     for (let x = 0; x < this.comp_orders.length; ++x) {
       const corder = this.comp_orders[x];
@@ -304,6 +305,9 @@ class LabManager {
       }      
     }
 
+    ////////////////////////////////////////////////////////////////////////
+    // Execute the choosen next comp order or clear out all completed orders.
+    ////////////////////////////////////////////////////////////////////////
     if (next_comp_order) {
       this.comp_order_execute(labs, term_obj, next_comp_order, mover);
     } else {
@@ -316,27 +320,28 @@ class LabManager {
     }
 
     let best_trade = gm.trades[0];
-
     let profit_delta = best_trade.demand_price - best_trade.factory_price
 
     // TODO: Consider the fact that the supply_price may be lower than the demand_price!
 
-    // I am going to try building things at a slight loss. It will help to test
-    // the code. As long as the loss is not too much per item.
+    /////////////////////////////////////////////////////////////////////////
+    // If the price is right then build the `comp_orders` array.           //
+    /////////////////////////////////////////////////////////////////////////
     if (profit_delta < -10) {
       logging.info('The best trade\'s factory price is larger than demand price.');
       return;
     }
 
-    // If we have no component orders then create a list of them from the current
-    // best product we can build.
     if (this.comp_orders.length === 0) {
+      this.build_new_comp_orders();
+    }
+  }
+
+  function build_new_comp_orders() {
       const count = 10;
 
       logging.info('Linearizing plan.');
-      // Convert the trade plan into a linear list.
       const trade_parts = this.term.make_plan_linear(best_trade.plan);
-
       const comp_orders = this.comp_orders;
 
       const to_buy = {};  
