@@ -125,7 +125,7 @@ module.exports.loop = function () {
     });
 
     // Each tick give 3 CPU with 20 CPU bucket.
-    task.credit(3, 20);
+    task.credit(2, 20);
   }
 
   let res = te.run_tasks();
@@ -138,7 +138,7 @@ module.exports.loop = function () {
   Memory.cpuhis.push(Game.cpu.getUsed());
 
   while (Memory.cpuhis.length > 100) {
-    Memory.cpuhis.pop(0);
+    Memory.cpuhis.shift();
   }
 
   return res;

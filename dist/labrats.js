@@ -337,75 +337,73 @@ class LabManager {
     }
   }
 
-  function build_new_comp_orders() {
-      const count = 10;
+  build_new_comp_orders() {
+    const count = 10;
 
-      logging.info('Linearizing plan.');
-      const trade_parts = this.term.make_plan_linear(best_trade.plan);
-      const comp_orders = this.comp_orders;
+    logging.info('Linearizing plan.');
+    const trade_parts = this.term.make_plan_linear(best_trade.plan);
+    const comp_orders = this.comp_orders;
 
-      const to_buy = {};  
-      const to_combine = {};
+    const to_buy = {};  
+    const to_combine = {};
 
-      logging.info('trade_parts.length', trade_parts.length);
- 
-      for (let e of trade_parts) {
-        logging.info('here');
-        if (e[1] === undefined && e[2] === undefined) {
-          // This is required to be bought.
-          logging.info(`trade_part *must* buy ${e[3]}`);
-          //comp_orders.push({
-          //  action: 'buy',
-          //  what: e[3],
-          //  count: count,
-          //});
-          to_buy[e[3]] = to_buy[e[3]] || 0;
-          to_buy[e[3]] += count;
-        } else {
-          logging.info(`trade_part *must* combine ${e[1]} + ${e[2]} = ${e[3]}`);
-          //comp_orders.push({
-          //  action: 'combine',
-          //  what: [e[1], e[2]],
-          //  into: e[3],
-          //  count: count,
-          //});
-          to_combine[e[3]] = to_combine[e[3]] = {};
-          to_combine[e[3]].what = [e[1], e[2]];
-          to_combine[e[3]].count = to_combine[e[3]].count || 0;
-          to_combine[e[3]].count += count;
-        }
-      }
+    logging.info('trade_parts.length', trade_parts.length);
 
-      for (let k in to_buy) {
-        logging.debug(`to_buy ${k}=${to_buy[k]}`);
-
-        // Calculate how much is in the labs at this moment.
-        const amount_in_labs = _.sumBy(labs, lab => {
-          const what = Object.keys(lab.store)[0];
-          if (what !== k) {
-            return 0;
-          }
-          return lab.store.getUsedCapacity(k);
-        });
-
-        comp_orders.push({
-          action: 'buy',
-          what: k,
-          count: to_buy[k] - term_obj.store.getUsedCapacity(k) - amount_in_labs,
-        });
-      }
-
-      for (let k in to_combine) {
-        logging.debug(`to_combine ${k}=${to_combine[k].count}`);
-        comp_orders.push({
-          action: 'combine',
-          inputs: to_combine[k].what,
-          output: k,
-          count: to_combine[k].count //- term_obj.store.getUsedCapacity(k),
-        });
+    for (let e of trade_parts) {
+      logging.info('here');
+      if (e[1] === undefined && e[2] === undefined) {
+        // This is required to be bought.
+        logging.info(`trade_part *must* buy ${e[3]}`);
+        //comp_orders.push({
+        //  action: 'buy',
+        //  what: e[3],
+        //  count: count,
+        //});
+        to_buy[e[3]] = to_buy[e[3]] || 0;
+        to_buy[e[3]] += count;
+      } else {
+        logging.info(`trade_part *must* combine ${e[1]} + ${e[2]} = ${e[3]}`);
+        //comp_orders.push({
+        //  action: 'combine',
+        //  what: [e[1], e[2]],
+        //  into: e[3],
+        //  count: count,
+        //});
+        to_combine[e[3]] = to_combine[e[3]] = {};
+        to_combine[e[3]].what = [e[1], e[2]];
+        to_combine[e[3]].count = to_combine[e[3]].count || 0;
+        to_combine[e[3]].count += count;
       }
     }
-    //
+
+    for (let k in to_buy) {
+      logging.debug(`to_buy ${k}=${to_buy[k]}`);
+
+      // Calculate how much is in the labs at this moment.
+      const amount_in_labs = _.sumBy(labs, lab => {
+        const what = Object.keys(lab.store)[0];
+        if (what !== k) {
+          return 0;
+        }
+        return lab.store.getUsedCapacity(k);
+      });
+
+      comp_orders.push({
+        action: 'buy',
+        what: k,
+        count: to_buy[k] - term_obj.store.getUsedCapacity(k) - amount_in_labs,
+      });
+    }
+
+    for (let k in to_combine) {
+      logging.debug(`to_combine ${k}=${to_combine[k].count}`);
+      comp_orders.push({
+        action: 'combine',
+        inputs: to_combine[k].what,
+        output: k,
+        count: to_combine[k].count //- term_obj.store.getUsedCapacity(k),
+      });
+    }
   }
 
   tick (task, creeps, labs, extractors) {

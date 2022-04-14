@@ -40,6 +40,10 @@ module.exports.register = function () {
     return `The average historical CPU usage is ${avg}.`;
   };
 
+  Game.show_cpuavg.help = {
+    desc: 'Shows the average CPU usage minus serialization.',
+  };
+
   Game.show_intentions = () => {
     const lines = [];
 

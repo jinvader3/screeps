@@ -2,6 +2,7 @@ const { Graph } = require('./graph.js');
 const { _ } = require('./lodash-core');
 const { GreedySolver } = require('./graph.greedy.js');
 const { DinicSolver } = require('./graph.dinic.js');
+const { Image } = require('./graph.image.js');
 
 class Room {
   constructor (w, h) {
@@ -25,7 +26,7 @@ class Room {
 
   get (x, y) {
     if (y >= this.h || x >= this.w || x < 0 || y < 0) {
-      throw new Error('Coordinate Out Of Bounds');
+      return false;
     }
 
     const i = x + y * this.w;
@@ -95,6 +96,16 @@ class Room {
     }
 
     return g;
+  }
+
+  build_room_matrix () {
+    let i = Image.zeros(50, 50);
+    for (let y = 0; y < 50; ++y) {
+      for (let x = 0; x < 50; ++x) {
+        i.set(x, y, this.get(x, y) ? 1 : 0);
+      }
+    }
+    return i; 
   }
 
   build_exit_vector_image (sx, sy) {
@@ -224,10 +235,16 @@ const fs = require('fs');
 const { StringDecoder } = require('string_decoder');
 //
 const room = new Room(50, 50);
-const data = fs.readFileSync('./w1n1.json');
+const data = fs.readFileSync('./e3s1.json');
 const decoder = new StringDecoder('utf8');
 const data_utf8 = decoder.write(data);
 const data_json = JSON.parse(data_utf8);
+
+for (let y = 0; y < 50; ++y) {
+  for (let x = 0; x < 50; ++x) {
+    room.set(x, y, true);
+  }
+}
 
 for (let item of data_json.terrain) {
   const x = item.x;
@@ -236,68 +253,233 @@ for (let item of data_json.terrain) {
 
   if (typ === 'wall') {
     room.set(x, y, false);
-  } else {
-    room.set(x, y, true);
   }
 }
 
-g = room.build_exit_vector_graph(19, 29);
+const rimage = room.build_room_matrix();
 
-//g = room.build_graph();
-let ds_g = new DinicSolver(g, '4:20', '49:24');
-console.log(ds_g.get_max_flow());
+const parts = require('./parts');
 
-/*
-// TEST CASE GEEK FOR GEEKS
-// https://www.geeksforgeeks.org/dinics-algorithm-maximum-flow/
-g = new Graph();
-g.add_edge('s', '1', 10);
-g.add_edge('s', '2', 10);
-g.add_edge('1', '2', 2);
-g.add_edge('1', '4', 8);
-g.add_edge('1', '3', 4);
-g.add_edge('2', '4', 9);
-g.add_edge('4', '3', 6);
-g.add_edge('4', 't', 10);
-g.add_edge('3', 't', 10);
-console.assert((new DinicSolver(g, 's', 't')).get_max_flow() === 19);
-*/
+const max_piece_counts = {};
 
-/*
-let tc2_edges = [
-  ['d', 't', 3],
-  ['e', 'd', 8],
-  ['d', 'c', 1],
-  ['b', 'c', 4],
-  ['c', 't', 1],
-  ['b', 't', 10],
-  ['a', 'b', 2],
-  ['a', 'd', 3],
-  ['s', 'e', 9],
-  ['s', 'a', 4],
-];
+// Just a conversion from letter to numerical used in matrices.
+const letter_to_id = {
+  e: parts.e,
+  s: parts.s,
+  l: parts.l,
+  t: parts.t,
+  w: parts.w,
+  o: parts.o,
+  p: parts.p,
+  x: parts.x,
+  m: parts.m,
+  a: parts.a,
+  n: parts.n,
+  f: parts.f,
+};
 
-tc2_edges = _.shuffle(tc2_edges);
+max_piece_counts[parts.e] = 60; // extension
+max_piece_counts[parts.s] = 3;  // spawn
+max_piece_counts[parts.l] = 1;  // link (special)
+max_piece_counts[parts.t] = 1;  // storage
+max_piece_counts[parts.w] = 6;  // tower
+max_piece_counts[parts.o] = 1;  // observer
+max_piece_counts[parts.p] = 1;  // power spawn
+max_piece_counts[parts.m] = 1;  // terminal
+max_piece_counts[parts.a] = 10; // labs
+max_piece_counts[parts.n] = 1;  // nuker
+max_piece_counts[parts.f] = 1;  // factory
 
-// HARLEM'S TEST CASE
-g = new Graph();
-for (let ed of tc2_edges) {
-  g.add_edge(ed[0], ed[1], ed[2]);
+
+function count_string_to_piece_counts (cstr) {
+  const out = {};
+  for (let x = 0; x < cstr.length / 3; ++x) {
+    const code = cstr[x*3+0];
+    const id = letter_to_id[code];
+    const num = parseInt(cstr.substr(x*3+1, 2));
+    out[id] = num;
+  }
+  return out;
 }
-console.assert((new DinicSolver(g, 's', 't')).get_max_flow() === 6);
-*/
+function add_piece_counts_check_exceeding (a, b, max) {
+  let c = {};
 
-/*
-g = new Graph();
-// WIKIPEDIA TEST CASE (19)
-g.add_edge('s', '1', 10);
-g.add_edge('s', '2', 10);
-g.add_edge('1', '3', 4);
-g.add_edge('2', '4', 9);
-g.add_edge('1', '4', 8);
-g.add_edge('1', '2', 2);
-g.add_edge('3', 't', 10);
-g.add_edge('4', '3', 6);
-g.add_edge('4', 't', 10);
-console.assert((new DinicSolver(g, 's', 't')).get_max_flow() === 19);
-*/
+  for (let k in a) {
+    c[k] = (c[k] || 0) + a[k];
+  }
+
+  for (let k in b) {
+    c[k] = (c[k] || 0) + b[k];
+  }
+
+  for (let k in c) {
+    if (max[k] === undefined) {
+      throw new Error(`BUG k=${k}`);
+    }
+
+    if (c[k] > max[k]) {
+      return true;
+    }
+  }
+
+  return false;
+}
+function add_counts (a, b) {
+  let c = {};
+
+  for (let k in a) {
+    c[k] = (c[k] || 0) + a[k];
+  }
+
+  for (let k in b) {
+    c[k] = (c[k] || 0) + b[k];
+  }
+
+  return c;
+}
+function check_piece_counts_maxed (a, b) {
+  for (let k in b) {
+    if (a[k] === undefined) {
+      return false;
+    }
+
+    if (a[k] < b[k]) {
+      return false;
+    }
+    if (a[k] > b[k]) {
+      throw new Error('BUG');
+    }
+  }
+
+  for (let k in a) {
+    if (b[k] === undefined) {
+      throw new Error('BUG');
+    }
+  }
+
+  return true;
+}
+
+function randomly_select_complete_set_of_parts () {
+  let counts = {};
+
+  let to_use_parts = [];
+  let tmp = [];
+
+  do {
+    // Randomly select parts that do not cause us to exceed our maximum
+    // piece counts, but don't stop iterating until we reach the maximum
+    // number of each piece type. 
+    const rndx = Math.floor(Math.random() * parts.parts.length);
+    let spart = parts.parts[rndx];
+    const pcounts = count_string_to_piece_counts(spart[0]);
+
+    if (add_piece_counts_check_exceeding(counts, pcounts, max_piece_counts)) {
+      // This part has too many pieces to be valid.
+      continue;
+    }
+
+    if (Math.random() > 0.5) {
+      tmp.push(spart[1].rotate_90());
+    } else {
+      tmp.push(spart[1].clone());
+    }
+
+    to_use_parts.push(spart[1]);
+    counts = add_counts(counts, pcounts);
+  } while (!check_piece_counts_maxed(counts, max_piece_counts));
+
+  console.log(`completed with ${to_use_parts.length} parts`);
+
+  return to_use_parts;
+}
+
+function bfs_tile_list (sx, sy, validf) {
+  const q = [];
+  const l = [];
+  const visited = {};
+  const moves = [
+    [1, 0], [1, -1], [1, 1],
+    [-1, 0], [-1, -1], [-1, 1],
+    [0, 1], [0, -1],
+  ];
+
+  visited[sx + sy * 50] = true;
+  q.push([sx, sy]);
+
+  while (q.length > 0) {
+    let cn = q.pop();
+    for (let move of moves) {
+      let nx = cn[0] + move[0];
+      let ny = cn[1] + move[1];
+      let ni = nx + ny * 50;
+      if (visited[ni] === true) {
+        continue;
+      }
+      if (validf(nx, ny)) {
+        visited[ni] = true;
+        q.unshift([nx, ny]);
+        l.unshift([nx, ny]);
+      }
+    }
+  }
+
+  return l;
+}
+
+function try_placing_parts_via_tiles (rimage, part_list, tiles) { 
+  rimage = rimage.clone();
+  let simage = Image.zeros(rimage.w, rimage.h);
+
+  while (tiles.length > 0 && part_list.length > 0) {
+    const ctile = tiles.pop();
+    const cpart = part_list[0];
+    //console.log('ctile', ctile);
+    //console.log(cpart.d);
+    const v = cpart.valid(rimage, ctile[0], ctile[1])
+    if (v.sum() == cpart.w * cpart.h) {
+      // It fit.
+      console.log('fit at', ctile);
+      // Mark area as impassable.
+      rimage.blend(ctile[0], ctile[1], cpart);
+      simage.blend(ctile[0], ctile[1], cpart);
+      part_list.shift();
+    }
+  }
+
+  return simage;
+}
+
+// (1) randomly pick parts that constitute all pieces at RCL8
+// (2) DFS the area from source[0] and push each spot onto
+//     a list in the order of enumeration
+// (3) randomly permutate the list of picked parts
+// (4) try to fit the parts one at a time by moving up the list and
+//     trying to place the part (ensuring the parts are next to each
+//     other on each placement)
+// (5) goto 3 if unable to place all parts and goto 1 if still unable
+//     to place all parts after X iterations
+
+let part_list = randomly_select_complete_set_of_parts();
+let tiles = bfs_tile_list(9, 7, (nx, ny) => {
+  const v = room.get(nx, ny);
+  return v;
+});
+console.log(`tiles is ${tiles.length} long`);
+let simage = try_placing_parts_via_tiles(rimage, part_list, tiles);
+
+for (let y = 0; y < 50; ++y) {
+  let row = [];
+  for (let x = 0; x < 50; ++x) {
+    let v = new String(simage.get(x, y));
+    v = v.length == 2 ? v : ' ' + v;
+    row.push(v);
+  }
+  row = row.join(' ');
+  console.log(row);
+}
+
+
+
+
+
