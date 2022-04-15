@@ -29,13 +29,39 @@ module.exports.register = function () {
   };
 
   Game.show_cpuavg = () => {
-    let sum = 0;
+    const memory = game.memory();
+    // Calculate CPU usage per task.
+    const tasks = memory.tasks;
 
-    for (let x = 0; x < Memory.cpuhis.length; ++x) {
-      sum += Memory.cpuhis[x];
+    for (let task_id in tasks) {
+      const parts = task_id.split('/');
+      const task = tasks[task_id];
+      const bucket = task.amount;
+      const avgcpu = task.avgsum / task.avgcnt;
+      let creep_name = null;
+      let extra = '';
+
+      if (parts.length >= 3) {
+        const sub_parts = parts[2].split(':');
+        if (sub_parts.length === 3 && sub_parts[0] === 'creep') {
+          creep_name = `${sub_parts[1]}:${sub_parts[2]}`;
+        }
+      }
+
+      if (creep_name !== null) {
+        extra = `${memory.creeps[creep_name].g}`;
+      }
+
+      console.log(`${task_id} avg=${avgcpu} bucket=${bucket} ${extra}`);
     }
 
-    const avg = sum / Memory.cpuhis.length;
+    // Calculate overall CPU usage.
+    let sum = 0;
+    for (let x = 0; x < memory.cpuhis.length; ++x) {
+      sum += memory.cpuhis[x];
+    }
+
+    const avg = sum / memory.cpuhis.length;
   
     return `The average historical CPU usage is ${avg}.`;
   };

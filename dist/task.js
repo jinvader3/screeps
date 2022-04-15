@@ -30,6 +30,7 @@ class Task {
   }
 
   charge (amount) {
+    this._avg_charge(amount);
     this.set_credit(this.get_credit() - amount);
   }
 
@@ -45,19 +46,28 @@ class Task {
     return tasks;
   }
 
+  _avg_charge (amount) {
+    const fname = this.get_full_name();
+    const tasks = this.get_tasks();
+    tasks[fname] = tasks[fname] || {};
+    tasks[fname].avgsum = tasks[fname].avgsum || 0;
+    tasks[fname].avgcnt = tasks[fname].avgcnt || 0;
+    tasks[fname].avgsum += amount;
+    tasks[fname].avgcnt += 1;
+  }
+
   _get_credit () {
     let fname = this.get_full_name();
     let tasks = this.get_tasks();
-    if (tasks[fname] === undefined) {
-      return 0;
-    }
-    return tasks[fname];
+    tasks[fname] = tasks[fname] || {};
+    return tasks[fname].amount || 0;
   }
 
   _set_credit (amount) {
     let tasks = this.get_tasks();
     let fname = this.get_full_name();
-    tasks[fname] = amount;
+    tasks[fname] = tasks[fname] || {};
+    tasks[fname].amount = amount;
   }
 
   get_credit () {
