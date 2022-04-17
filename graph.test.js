@@ -235,7 +235,7 @@ const fs = require('fs');
 const { StringDecoder } = require('string_decoder');
 //
 const room = new Room(50, 50);
-const data = fs.readFileSync('./e3s1.json');
+const data = fs.readFileSync('./w48s9.json');
 const decoder = new StringDecoder('utf8');
 const data_utf8 = decoder.write(data);
 const data_json = JSON.parse(data_utf8);
@@ -364,7 +364,8 @@ function randomly_select_complete_set_of_parts () {
   let counts = {};
 
   let to_use_parts = [];
-  let tmp = [];
+
+  let cycles = 0;
 
   do {
     // Randomly select parts that do not cause us to exceed our maximum
@@ -380,16 +381,17 @@ function randomly_select_complete_set_of_parts () {
     }
 
     if (Math.random() > 0.5) {
-      tmp.push(spart[1].rotate_90());
+      if (Math.random() > 0.5) {
+        let q = spart[1].rotate_90();
+        to_use_parts.push(q.rotate_90());
+      } else {
+        to_use_parts.push(spart[1].rotate_90());
+      }
     } else {
-      tmp.push(spart[1].clone());
+      to_use_parts.push(spart[1].clone());
     }
-
-    to_use_parts.push(spart[1]);
     counts = add_counts(counts, pcounts);
   } while (!check_piece_counts_maxed(counts, max_piece_counts));
-
-  console.log(`completed with ${to_use_parts.length} parts`);
 
   return to_use_parts;
 }
@@ -398,11 +400,11 @@ function bfs_tile_list (sx, sy, validf) {
   const q = [];
   const l = [];
   const visited = {};
-  const moves = [
+  const moves = _.shuffle([
     [1, 0], [1, -1], [1, 1],
     [-1, 0], [-1, -1], [-1, 1],
     [0, 1], [0, -1],
-  ];
+  ]);
 
   visited[sx + sy * 50] = true;
   q.push([sx, sy]);
@@ -430,24 +432,35 @@ function bfs_tile_list (sx, sy, validf) {
 function try_placing_parts_via_tiles (rimage, part_list, tiles) { 
   rimage = rimage.clone();
   let simage = Image.zeros(rimage.w, rimage.h);
+  let _tiles = [];
 
   while (tiles.length > 0 && part_list.length > 0) {
     const ctile = tiles.pop();
+    _tiles.unshift(ctile);
     const cpart = part_list[0];
     //console.log('ctile', ctile);
     //console.log(cpart.d);
-    const v = cpart.valid(rimage, ctile[0], ctile[1])
-    if (v.sum() == cpart.w * cpart.h) {
+    const v_sum = cpart.valid(rimage, ctile[0], ctile[1])
+    if (v_sum == cpart.w * cpart.h) {
       // It fit.
-      console.log('fit at', ctile);
       // Mark area as impassable.
       rimage.blend(ctile[0], ctile[1], cpart);
-      simage.blend(ctile[0], ctile[1], cpart);
+      //simage.blend(ctile[0], ctile[1], cpart);
       part_list.shift();
     }
   }
+  
+  const score = tiles.length;
 
-  return simage;
+  while (tiles.length > 0) {
+    _tiles.unshift(tiles.pop());
+  }
+
+  return { 
+    simage: rimage,
+    score: score,
+    tiles: _tiles,
+  };
 }
 
 // (1) randomly pick parts that constitute all pieces at RCL8
@@ -460,26 +473,57 @@ function try_placing_parts_via_tiles (rimage, part_list, tiles) {
 // (5) goto 3 if unable to place all parts and goto 1 if still unable
 //     to place all parts after X iterations
 
-let part_list = randomly_select_complete_set_of_parts();
-let tiles = bfs_tile_list(9, 7, (nx, ny) => {
+let best_score = 0;
+
+let tiles = bfs_tile_list(43, 24, (nx, ny) => {
   const v = room.get(nx, ny);
   return v;
 });
-console.log(`tiles is ${tiles.length} long`);
-let simage = try_placing_parts_via_tiles(rimage, part_list, tiles);
 
-for (let y = 0; y < 50; ++y) {
-  let row = [];
-  for (let x = 0; x < 50; ++x) {
-    let v = new String(simage.get(x, y));
-    v = v.length == 2 ? v : ' ' + v;
-    row.push(v);
+const mp = {
+  0: 'W',
+  1: ' ',
+  2: 'E',
+  3: 'S',
+  4: 'L',
+  5: 'R',
+  6: 'T',
+  7: 'O',
+  8: 'P',
+  9: 'X',
+  10: 'M',
+  11: 'A',
+  12: 'N',
+  13: 'F',
+  14: '_',
+};
+
+let count = 0;
+
+//for (let w = 0; w < 10000; ++w) {
+while (true) {
+  let part_list = randomly_select_complete_set_of_parts();
+  let res = try_placing_parts_via_tiles(rimage, part_list, tiles);
+  let simage = res.simage;
+  let score = res.score;
+  tiles = res.tiles;
+
+  if (score > best_score) {
+    best_score = score;
+    for (let y = 0; y < 50; ++y) {
+      let row = [];
+      for (let x = 0; x < 50; ++x) {
+        let v = new String(simage.get(x, y));    
+        row.push(mp[v]);
+      }
+      row = row.join('');
+      console.log(row);
+    }
+    console.log('score', score, count);
   }
-  row = row.join(' ');
-  console.log(row);
+
+  count++;
 }
-
-
 
 
 

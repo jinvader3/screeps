@@ -10,6 +10,6 @@ ap.add_argument('--shard', type=str, required=True)
 
 args = ap.parse_args()
 
-api = API(u='b5g6m9@mail.com', p='3x@j469mAZhe49', secure=True)
+api = API(u=args.user, p=args.pass, secure=True)
 t = api.room_terrain(args.room, shard=args.shard)
 print(json.dumps(t))

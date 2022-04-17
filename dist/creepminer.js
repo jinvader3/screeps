@@ -112,11 +112,16 @@ class CreepMiner extends Creep {
         this.move_to(cont);
       } else {
         this.creep.harvest(source);
-        if (send_energy) {
+        // Decrease CPU usage by only transfering when our capacity is at half.
+        const total_capacity = this.creep.store.getCapacity(game.RESOURCE_ENERGY);
+        const used_capacity = this.creep.store.getUsedCapacity(game.RESOURCE_ENERGY);
+        if (send_energy && used_capacity > total_capacity * 0.5) {
           this.creep.transfer(link, game.RESOURCE_ENERGY);
-          if (link.cooldown === 0 && 
+          const link_total_capacity = link.store.getCapacity(game.RESOURCE_ENERGY);
+          const link_used_capacity = link.store.getUsedCapacity(game.RESOURCE_ENERGY);
+          if (link.cooldown === 0 &&
               link.isActive() && 
-              link.store.getUsedCapacity(game.RESOURCE_ENERGY) > 0) {
+              link_used_capacity > link_total_capacity * 0.9) {
             logging.info('link.transfer', link.transferEnergy(dlink));
           }
         }

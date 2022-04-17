@@ -28,11 +28,58 @@ module.exports.register = function () {
     return lines.join('');
   };
 
+  Game.show_comp_orders_room = (room) => {
+    const m = game.memory().rooms[room];
+    const comp_orders = m.labman_comp_orders;
+    
+    if (comp_orders === undefined) {
+      return [`==${room}==`, 'No Orders'].join('<br/>');
+    }
+
+    const lines = [`==${room}==`];
+
+    for (let x = 0; x < comp_orders.length; ++x) {
+      const order = comp_orders[x];
+      const action = order.action;
+
+      switch (action) {
+        case 'buy':
+          lines.push(`BUY ${order.what} ${order.count}`);
+          break;
+        case 'combine':
+          lines.push(`COMBINE ${order.inputs[0]} + ${order.inputs[1]} = ${order.output} [${order.count}]`);
+          break;
+        default:
+          lines.push(`unknown action ${action}`);
+          break;
+      }
+    }
+
+    return lines.join('<br/>');
+  };
+
+  Game.show_comp_orders = () => {
+    let lines = [];
+    for (let room_name in game.rooms()) {
+      lines.push(Game.show_comp_orders_room(room_name));
+    }
+    return lines.join('<br/>');
+  };
+
+  Game.show_rooms = () => {
+    let lines = [];
+    for (let room_name in game.rooms()) {
+      lines.push(`${room_name}`);
+    }
+    return lines.join('<br/>');
+  };
+
   Game.show_cpuavg = () => {
     const memory = game.memory();
     // Calculate CPU usage per task.
     const tasks = memory.tasks;
 
+    let rows = [];
     for (let task_id in tasks) {
       const parts = task_id.split('/');
       const task = tasks[task_id];
@@ -52,7 +99,23 @@ module.exports.register = function () {
         extra = `${memory.creeps[creep_name].g}`;
       }
 
-      console.log(`${task_id} avg=${avgcpu} bucket=${bucket} ${extra}`);
+      rows.push([task_id, avgcpu, bucket, extra]);
+      //console.log(`${task_id} avg=${avgcpu} bucket=${bucket} ${extra}`);
+    }
+
+    rows.sort((a, b) => a[1] - b[1]);
+
+    let lines = [];
+
+    for (let x = 0; x < rows.length; ++x) {
+      const row = rows[x];
+      let state;
+      if (row[2] !== undefined && row[2] <= 0) {
+        state = '[<span style="color: red;">OFF</span>]';
+      } else {
+        state = '[<span style="color: green;">ON </span>]';
+      }
+      lines.push(`${state} ${row[0]} avg=${row[1]} bucket=${row[2]} ${row[3]}`);
     }
 
     // Calculate overall CPU usage.
@@ -63,7 +126,8 @@ module.exports.register = function () {
 
     const avg = sum / memory.cpuhis.length;
   
-    return `The average historical CPU usage is ${avg}.`;
+    lines.push(`The average historical CPU usage is ${avg}.`);
+    return lines.join('<br/>');
   };
 
   Game.show_cpuavg.help = {

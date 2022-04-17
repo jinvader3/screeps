@@ -183,6 +183,26 @@ class LabManager {
         next_comp_order.count = 0;
       }
 
+      const have_some_product = (what) => {
+        if (Object.keys(labs[0].store)[0] === what) {
+          return true;
+        }
+        
+        if (Object.keys(labs[1].store)[0] === what) {
+          return true;
+        }
+
+        if (Object.keys(labs[2].store)[0] === what) {
+          return true;
+        }
+
+        if (_.some(Object.keys(term_obj.store), k => k === what)) {
+          return true;
+        }
+
+        return false;
+      };
+
       let lab0_what = Object.keys(labs[0].store)[0];
       let lab1_what = Object.keys(labs[1].store)[0];
       let lab2_what = Object.keys(labs[2].store)[0];
@@ -194,11 +214,23 @@ class LabManager {
       logging.info(`Lab-Output=${next_comp_order.output}`);
       logging.info(`lab2_what=${lab2_what} lab1_what=${lab1_what} lab0_what=${lab0_what}`);
 
+      if (!have_some_product(next_comp_order.inputs[0])) {
+        return true;
+      }
+
+      if (!have_some_product(next_comp_order.inputs[1])) {
+        return true;
+      }
+
+      const self = this;
+
       function move_product_out_of_lab (name, lab) {
         const lab_what = Object.keys(lab.store)[0];
+        logging.info('HERE');
         if (lab_what) {
+          logging.info('move_product_out_of_lab called', lab.id);
           mover.stmh_set(name, ss => {
-            mover.stmh_dump_store_to_object(ss, this.room.get_storage());
+            mover.stmh_dump_store_to_object(ss, self.room.get_storage());
             mover.stmh_load_resource_from_store(ss, lab, lab_what);
             mover.stmh_dump_store_to_object(ss, term_obj);
             return true;
@@ -207,12 +239,12 @@ class LabManager {
       }
 
       function move_product_into_lab (name, lab, what) {
-        if (term_obj.store.getUsedCapacity(next_comp_order.inputs[0]) > 0) {
+        if (term_obj.store.getUsedCapacity(what) > 0) {
           logging.info('moving product into lab0');
           mover.stmh_set(name, ss => {
-            mover.stmh_dump_store_to_object(ss, this.room.get_storage());
-            mover.stmh_load_resource_from_store(ss, term_obj, next_comp_order.inputs[0]);
-            mover.stmh_dump_store_to_object(ss, labs[0]);
+            mover.stmh_dump_store_to_object(ss, self.room.get_storage());
+            mover.stmh_load_resource_from_store(ss, term_obj, what);
+            mover.stmh_dump_store_to_object(ss, lab);
             return true;
           });
         }
@@ -223,6 +255,12 @@ class LabManager {
         return lab_what === undefined || lab_what === what;
       }
 
+      let tmp = [next_comp_order.inputs[0], next_comp_order.inputs[1], next_comp_order.output];
+
+      for (let x = 0; x < labs.length; ++x) {
+        logging.info(`lab_ready_for_io(${x}, ${tmp[x]}) == ${lab_ready_for_io(labs[x], tmp[x])}`);
+      }
+
       if (lab_ready_for_io(labs[2], next_comp_order.output)) {
       } else {
         logging.info('lab2 has the wrong product in it');
@@ -230,6 +268,7 @@ class LabManager {
       }
 
       if (lab_ready_for_io(labs[0], next_comp_order.inputs[0])) {
+        logging.info('move product into lab0');
         move_product_into_lab('mpila', labs[0], next_comp_order.inputs[0]);
       } else {
         logging.info('lab0 has the wrong product in it');
@@ -237,6 +276,7 @@ class LabManager {
       }
       
       if (lab_ready_for_io(labs[1], next_comp_order.inputs[1])) {
+        logging.info('move product into lab1');
         move_product_into_lab('mpilb', labs[1], next_comp_order.inputs[1]);
       } else {
         logging.info('lab1 has the wrong product in it');
@@ -297,6 +337,8 @@ class LabManager {
     // Look for next non-zero count component order of action 'combine'.//
     //////////////////////////////////////////////////////////////////////
     let next_comp_order = null;
+
+    /*
     for (let x = 0; x < this.comp_orders.length; ++x) {
       const corder = this.comp_orders[x];
       if (corder.action === 'combine' && corder.count > 0) {
@@ -304,13 +346,34 @@ class LabManager {
         break;
       }      
     }
+    */
+
+    while (this.comp_orders.length > 0) {
+      if (this.comp_orders[0].count > 0) {
+        next_comp_order = this.comp_orders[0];
+        break;
+      }
+      let item = this.comp_orders.shift();
+      logging.info('shifted off', JSON.stringify(item));
+    }
 
     ////////////////////////////////////////////////////////////////////////
     // Execute the choosen next comp order or clear out all completed orders.
     ////////////////////////////////////////////////////////////////////////
-    if (next_comp_order) {
-      this.comp_order_execute(labs, term_obj, next_comp_order, mover);
+    let clear = false;
+
+    if (next_comp_order && next_comp_order.action === 'combine') {
+      if (this.comp_order_execute(labs, term_obj, next_comp_order, mover) === true) {
+        // This can happen IF we do not have ANY of a needed product. It keeps the 
+        // whole process from deadlocking by just clearing it out.
+        logging.info('comp_order_execute forced clear');
+        clear = true;
+      }
     } else {
+      clear = true;
+    }
+
+    if (clear) {
       this.clear_labs_out(labs, mover, term_obj);
       logging.info('Clearing out component orders since there is no valid next order.');
       while (this.comp_orders.length > 0) {
@@ -333,11 +396,11 @@ class LabManager {
     }
 
     if (this.comp_orders.length === 0) {
-      this.build_new_comp_orders();
+      this.build_new_comp_orders(term_obj, labs, best_trade);
     }
   }
 
-  build_new_comp_orders() {
+  build_new_comp_orders(term_obj, labs, best_trade) {
     const count = 10;
 
     logging.info('Linearizing plan.');
