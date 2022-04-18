@@ -196,6 +196,10 @@ class LabManager {
           return true;
         }
 
+        if (_.some(Object.keys(mover.creep.store), k => k === what)) {
+          return true;
+        }
+
         if (_.some(Object.keys(term_obj.store), k => k === what)) {
           return true;
         }
@@ -206,8 +210,6 @@ class LabManager {
       let lab0_what = Object.keys(labs[0].store)[0];
       let lab1_what = Object.keys(labs[1].store)[0];
       let lab2_what = Object.keys(labs[2].store)[0];
-
-      // Put in an order to load up the labs.
       logging.info(`Creating orders to load up labratories.`);
       logging.info(`Lab-Input-A=${next_comp_order.inputs[0]}`);
       logging.info(`Lab-Input-B=${next_comp_order.inputs[1]}`);
@@ -401,7 +403,7 @@ class LabManager {
   }
 
   build_new_comp_orders(term_obj, labs, best_trade) {
-    const count = 10;
+    const count = 50;
 
     logging.info('Linearizing plan.');
     const trade_parts = this.term.make_plan_linear(best_trade.plan);
@@ -531,7 +533,7 @@ class LabManager {
         'labrat',
         'labrat_mover',
         labrat_mover_bf,
-        40,
+        4,
         8,
         1,
         {}
