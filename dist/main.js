@@ -125,7 +125,7 @@ module.exports.loop = function () {
     });
 
     // Each tick give 3 CPU with 20 CPU bucket.
-    task.credit(2, 20);
+    task.credit(3, 20);
   }
 
   let res = te.run_tasks();

@@ -889,7 +889,7 @@ class Room {
       labman.tick(ctask, lab_creeps, this.labs, this.extractors);
     });
 
-    task.transfer(lab_task, 0.3, 5);
+    task.transfer(lab_task, 1, 5);
 
     if (this.ecfg.autobuild2) {
         let abtask = task.spawn_isolated(-40, 'autobuild2', ctask => {
