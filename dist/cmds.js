@@ -28,6 +28,12 @@ module.exports.register = function () {
     return lines.join('');
   };
 
+  Game.autobuild2_rebuild = (room_name) => {
+    const rm = Game.rooms[room_name].memory;
+    rm.plan = undefined;
+    return `Plan scheduled for rebuild for autobuild2 on room ${room_name}.`;
+  };
+
   Game.show_comp_orders_room = (room) => {
     const m = game.memory().rooms[room];
     const comp_orders = m.labman_comp_orders;
@@ -175,6 +181,16 @@ module.exports.register = function () {
     desc: 'Print room configuration in a formatted easy to read way.',
   };
 
+  Game.lab_enable = (room_name, enabled) => {
+    ecfg[room_name] = ecfg[room_name] || {};
+    ecfg[room_name].lab = enabled;
+    return `Lab enabled for room ${room_name}`;
+  };
+
+  Game.lab_enable.help = {
+    desc: 'Turn the labman on/off for the room specified.',
+  };
+
   Game.autobuild_on = (room_name) => {
     ecfg[room_name] = ecfg[room_name] || {};
     ecfg[room_name].autobuild = true;
@@ -185,6 +201,10 @@ module.exports.register = function () {
     ecfg[room_name] = ecfg[room_name] || {};
     ecfg[room_name].autobuild2 = active;
     return `AutoBuild2 for room ${room_name} set to ${active}.`;
+  };
+
+  Game.autobuild2.help = {
+    desc: 'Turn autobuild2 on/off for the room specified.'
   };
 
   Game.autobuild_on.help = {
