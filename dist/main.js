@@ -123,9 +123,8 @@ module.exports.loop = function () {
       logging.info(`task calling tick for room ${rname}`);
       rooms[rname].tick(task);
     });
-
-    // Each tick give 3 CPU with 20 CPU bucket.
-    task.credit(3, 20);
+    // Force each room to execute in two CPU/tick or less.
+    task.credit(2, 20);
   }
 
   let res = te.run_tasks();

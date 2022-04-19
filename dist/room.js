@@ -532,17 +532,21 @@ class Room {
       8: 1,
     };
 
-    worker_count = clevel_worker_count[clevel];
-    
-    this.spawnman.reg_build(
-      'gw',
-      'worker',
-      worker_bf,
-      7,
-      -1,
-      worker_count,
-      {}
-    );
+    if (clevel < 6 || this.csites.length > 0) {
+      // Once we reach RCL 6 we have labs. To save CPU don't spawn
+      // any workers unless we have construction sites.
+      worker_count = clevel_worker_count[clevel];
+      
+      this.spawnman.reg_build(
+        'gw',
+        'worker',
+        worker_bf,
+        7,
+        -1,
+        worker_count,
+        {}
+      );
+    }
 
     let hauler_count = 1;
 
@@ -553,8 +557,13 @@ class Room {
       // If there is too much dropped resources then maybe the miners
       // are out digging the creeps or something is happening and requires
       // extra hauling help.
-      hauler_count = 2;
-      logging.info('There is too much dropped energy. Increasing needed hauler count from 1 to 2.');
+      //
+      // BUT.. at RCL 6 we should be able to handle everything with a single
+      // hauler and to save CPU don't spawn another.
+      if (clevel < 6) {
+        hauler_count = 2;
+        logging.info('There is too much dropped energy. Increasing needed hauler count from 1 to 2.');
+      }
     }
 
     this.spawnman.reg_build(
@@ -881,15 +890,17 @@ class Room {
         });
       }
 
-      task.transfer(ctask, 0.3, 1);
+      task.transfer(ctask, 0.22, 20);
     }
 
-    let lab_task = task.spawn_isolated(40, `labman`, ctask => {
-      let labman = new LabManager(this);
-      labman.tick(ctask, lab_creeps, this.labs, this.extractors);
-    });
+    if (this.ecfg.lab) {
+      let lab_task = task.spawn_isolated(40, `labman`, ctask => {
+        let labman = new LabManager(this);
+        labman.tick(ctask, lab_creeps, this.labs, this.extractors);
+      });
+      task.transfer(lab_task, 1, 5);
+    }
 
-    task.transfer(lab_task, 1, 5);
 
     if (this.ecfg.autobuild2) {
         let abtask = task.spawn_isolated(-40, 'autobuild2', ctask => {
