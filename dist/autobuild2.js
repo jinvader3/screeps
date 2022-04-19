@@ -274,7 +274,7 @@ class AutoBuild2 {
       let y = Math.floor(k / 50);
       let x = k - y * 50;
 
-      if (v > 30.0) {
+      if (v > 28.0) {
         if (!_.some(room.roads, r => r.pos.isEqualTo(x, y))) {
           room.room.createConstructionSite(x, y, game.STRUCTURE_ROAD);
           return true;
