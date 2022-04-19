@@ -42,6 +42,7 @@ class Logging {
   }
 
   debug () {
+    this.print('yellow', arguments);
   }
 
   info () {
