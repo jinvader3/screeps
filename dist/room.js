@@ -752,8 +752,13 @@ class Room {
     });
 
     if (valid_hcreeps.length > 0) {
-      let fhcreep = _.sample(valid_hcreeps);
+      const fhcreep = _.sample(valid_hcreeps);
       _.each(this.towers, tower => tower.attack(fhcreep));
+    } else {
+      const road = _.sample(_.filter(this.roads, road => road.hits / road.hitsMax < 0.5));
+      if (road) {
+        _.each(this.towers, tower => tower.repair(road));
+      }
     }
 
     // Do all the housework that requires a spawn here.
@@ -819,9 +824,18 @@ class Room {
         ],
         [
           // If there are no workers. Then, do their job.
-          // If we have workers.
           this.dt_pull_from_objects_with_stores(
-            0.0, this.links_adj_storage,
+            0.0, this.links_nearest_storage, {},
+            lst => { 
+              lst.sort((a, b) => {
+                return a.store.getUsedCapacity(game.RESOURCE_ENERGY) >
+                       b.store.getUsedCapacity(game.RESOURCE_ENERGY) ? -1 : 1;
+              })
+              return lst[0];
+            }
+          ),
+          this.dt_pull_from_objects_with_stores(
+            0.0, this.active_containers_near_sources
           ),
           this.dt_pull_storage(),
           this.dt_pull_from_objects_with_stores(
@@ -848,6 +862,7 @@ class Room {
           ), // FINALLY, do this also if !(hcreeps.length > 0)
           this.dt_push_to_objects_with_stores(1.0, this.spawns.concat(this.exts)),
           this.dt_push_to_objects_with_stores(1.0, this.towers),
+          // TODO: Use link once upgrader has built it.
           this.dt_push_to_objects_with_stores(1.0, this.active_containers_adj_controller),
           this.dt_push_storage(1000000),
         ]
@@ -890,7 +905,7 @@ class Room {
         });
       }
 
-      task.transfer(ctask, 0.22, 20);
+      task.transfer(ctask, 0.32, 20);
     }
 
     if (this.ecfg.lab) {
