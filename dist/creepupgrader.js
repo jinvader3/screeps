@@ -16,9 +16,39 @@ class CreepUpgrader extends Creep {
     return cont.length > 0 ? cont[0] : null;
   }
 
+  find_link_adjacent_container (cont) {
+    return _.filter(this.room.links, link => link.pos.getRangeTo(cont) == 1)[0];
+  }
+
+  build_link (cont) {
+    const moves = [
+      [1, 0], [1, -1], [1, 1],
+      [-1, 0], [-1, -1], [-1, 1],
+      [0, 1], [0, -1],
+    ];
+
+    for (const move of moves) {
+      const nx = cont.pos.x + move[0];
+      const ny = cont.pos.y + move[1];
+      if (this.room.room.createConstructionSite(
+        nx, ny, game.STRUCTURE_LINK
+      ) === game.OK) {
+        return;
+      }
+    }
+  }
+
   tick () {
-    let c = this.room.get_controller();
-    let cont = this.find_container_near_controller(c);
+    const c = this.room.get_controller();
+    const cont = this.find_container_near_controller(c);
+    const clevel = c.level;
+    const link = this.find_link_adjacent_container(cont);
+  
+    if (cont && !link && clevel >= 6 && this.room.links.length <= 2) {
+      if (this.room.csites.length === 0) {
+        this.build_link(cont);
+      }
+    }
 
     if (cont) {
       if (!cont.pos.isEqualTo(this.creep.pos)) {
