@@ -93,9 +93,9 @@ class SpawnManager {
     }
 
     reg_build (clazz, group, build_gf, max_level, priority, count, memory, needed_level, post_ticks) {
-        logging.log(
-          `reg_build(${clazz}, ${group}, ..., ${max_level}, ${priority}, ${count}, ${memory}, ${needed_level})`
-        );
+        //logging.log(
+        //  `reg_build(${clazz}, ${group}, ..., ${max_level}, ${priority}, ${count}, ${memory}, ${needed_level})`
+        //);
 
         this.regs.push(new Reg(
             clazz, group, build_gf, max_level, priority, count, memory, needed_level, post_ticks
