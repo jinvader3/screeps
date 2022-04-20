@@ -54,17 +54,27 @@ class CreepUpgrader extends Creep {
       if (!cont.pos.isEqualTo(this.creep.pos)) {
         this.move_to(cont);
       } else {
-        let amt = Math.min(
+        const clink = this.room.get_controller_link();
+        
+        if (clink !== null) {
+          let amt = Math.min(
             this.creep.store.getFreeCapacity(game.RESOURCE_ENERGY),
-            cont.store.getUsedCapacity(game.RESOURCE_ENERGY)
-        );
-        let res = this.creep.withdraw(
-          cont, game.RESOURCE_ENERGY, 
-          amt
-        );
+            clink.store.getUsedCapacity(game.RESOURCE_ENERGY)
+          );
+
+          let res = this.creep.withdraw(clink, game.RESOURCE_ENERGY, amt);
+        } else {
+          let amt = Math.min(
+              this.creep.store.getFreeCapacity(game.RESOURCE_ENERGY),
+              cont.store.getUsedCapacity(game.RESOURCE_ENERGY)
+          );
+
+          let res = this.creep.withdraw(cont, game.RESOURCE_ENERGY, amt);
+        }
+        
         this.creep.upgradeController(c);
         
-        if (game.time() % 100 === 0) {
+        if (game.time() % 4000 === 0) {
           this.creep.signController(c, 'Redbeard is real. Beware.');
         }
       }

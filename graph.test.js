@@ -233,9 +233,8 @@ let g;
 
 const fs = require('fs');
 const { StringDecoder } = require('string_decoder');
-//
 const room = new Room(50, 50);
-const data = fs.readFileSync('./w48s9.json');
+const data = fs.readFileSync('./shard3_e1s3.json');
 const decoder = new StringDecoder('utf8');
 const data_utf8 = decoder.write(data);
 const data_json = JSON.parse(data_utf8);
@@ -256,274 +255,21 @@ for (let item of data_json.terrain) {
   }
 }
 
-const rimage = room.build_room_matrix();
-
-const parts = require('./parts');
-
-const max_piece_counts = {};
-
-// Just a conversion from letter to numerical used in matrices.
-const letter_to_id = {
-  e: parts.e,
-  s: parts.s,
-  l: parts.l,
-  t: parts.t,
-  w: parts.w,
-  o: parts.o,
-  p: parts.p,
-  x: parts.x,
-  m: parts.m,
-  a: parts.a,
-  n: parts.n,
-  f: parts.f,
-};
-
-max_piece_counts[parts.e] = 60; // extension
-max_piece_counts[parts.s] = 3;  // spawn
-max_piece_counts[parts.l] = 1;  // link (special)
-max_piece_counts[parts.t] = 1;  // storage
-max_piece_counts[parts.w] = 6;  // tower
-max_piece_counts[parts.o] = 1;  // observer
-max_piece_counts[parts.p] = 1;  // power spawn
-max_piece_counts[parts.m] = 1;  // terminal
-max_piece_counts[parts.a] = 10; // labs
-max_piece_counts[parts.n] = 1;  // nuker
-max_piece_counts[parts.f] = 1;  // factory
-
-
-function count_string_to_piece_counts (cstr) {
-  const out = {};
-  for (let x = 0; x < cstr.length / 3; ++x) {
-    const code = cstr[x*3+0];
-    const id = letter_to_id[code];
-    const num = parseInt(cstr.substr(x*3+1, 2));
-    out[id] = num;
+for (let y = 0; y < 50; ++y) {
+  const line = [];
+  for (let x = 0; x < 50; ++x) {
+    line.push(room.get(x, y) ? ' ' : 'W');
   }
-  return out;
-}
-function add_piece_counts_check_exceeding (a, b, max) {
-  let c = {};
-
-  for (let k in a) {
-    c[k] = (c[k] || 0) + a[k];
-  }
-
-  for (let k in b) {
-    c[k] = (c[k] || 0) + b[k];
-  }
-
-  for (let k in c) {
-    if (max[k] === undefined) {
-      throw new Error(`BUG k=${k}`);
-    }
-
-    if (c[k] > max[k]) {
-      return true;
-    }
-  }
-
-  return false;
-}
-function add_counts (a, b) {
-  let c = {};
-
-  for (let k in a) {
-    c[k] = (c[k] || 0) + a[k];
-  }
-
-  for (let k in b) {
-    c[k] = (c[k] || 0) + b[k];
-  }
-
-  return c;
-}
-function check_piece_counts_maxed (a, b) {
-  for (let k in b) {
-    if (a[k] === undefined) {
-      return false;
-    }
-
-    if (a[k] < b[k]) {
-      return false;
-    }
-    if (a[k] > b[k]) {
-      throw new Error('BUG');
-    }
-  }
-
-  for (let k in a) {
-    if (b[k] === undefined) {
-      throw new Error('BUG');
-    }
-  }
-
-  return true;
+  console.log(line.join(''));
 }
 
-function randomly_select_complete_set_of_parts () {
-  let counts = {};
-
-  let to_use_parts = [];
-
-  let cycles = 0;
-
-  do {
-    // Randomly select parts that do not cause us to exceed our maximum
-    // piece counts, but don't stop iterating until we reach the maximum
-    // number of each piece type. 
-    const rndx = Math.floor(Math.random() * parts.parts.length);
-    let spart = parts.parts[rndx];
-    const pcounts = count_string_to_piece_counts(spart[0]);
-
-    if (add_piece_counts_check_exceeding(counts, pcounts, max_piece_counts)) {
-      // This part has too many pieces to be valid.
-      continue;
-    }
-
-    if (Math.random() > 0.5) {
-      if (Math.random() > 0.5) {
-        let q = spart[1].rotate_90();
-        to_use_parts.push(q.rotate_90());
-      } else {
-        to_use_parts.push(spart[1].rotate_90());
-      }
-    } else {
-      to_use_parts.push(spart[1].clone());
-    }
-    counts = add_counts(counts, pcounts);
-  } while (!check_piece_counts_maxed(counts, max_piece_counts));
-
-  return to_use_parts;
-}
-
-function bfs_tile_list (sx, sy, validf) {
-  const q = [];
-  const l = [];
-  const visited = {};
-  const moves = _.shuffle([
-    [1, 0], [1, -1], [1, 1],
-    [-1, 0], [-1, -1], [-1, 1],
-    [0, 1], [0, -1],
-  ]);
-
-  visited[sx + sy * 50] = true;
-  q.push([sx, sy]);
-
-  while (q.length > 0) {
-    let cn = q.pop();
-    for (let move of moves) {
-      let nx = cn[0] + move[0];
-      let ny = cn[1] + move[1];
-      let ni = nx + ny * 50;
-      if (visited[ni] === true) {
-        continue;
-      }
-      if (validf(nx, ny)) {
-        visited[ni] = true;
-        q.unshift([nx, ny]);
-        l.unshift([nx, ny]);
-      }
-    }
-  }
-
-  return l;
-}
-
-function try_placing_parts_via_tiles (rimage, part_list, tiles) { 
-  rimage = rimage.clone();
-  let simage = Image.zeros(rimage.w, rimage.h);
-  let _tiles = [];
-
-  while (tiles.length > 0 && part_list.length > 0) {
-    const ctile = tiles.pop();
-    _tiles.unshift(ctile);
-    const cpart = part_list[0];
-    //console.log('ctile', ctile);
-    //console.log(cpart.d);
-    const v_sum = cpart.valid(rimage, ctile[0], ctile[1])
-    if (v_sum == cpart.w * cpart.h) {
-      // It fit.
-      // Mark area as impassable.
-      rimage.blend(ctile[0], ctile[1], cpart);
-      //simage.blend(ctile[0], ctile[1], cpart);
-      part_list.shift();
-    }
-  }
-  
-  const score = tiles.length;
-
-  while (tiles.length > 0) {
-    _tiles.unshift(tiles.pop());
-  }
-
-  return { 
-    simage: rimage,
-    score: score,
-    tiles: _tiles,
-  };
-}
-
-// (1) randomly pick parts that constitute all pieces at RCL8
-// (2) DFS the area from source[0] and push each spot onto
-//     a list in the order of enumeration
-// (3) randomly permutate the list of picked parts
-// (4) try to fit the parts one at a time by moving up the list and
-//     trying to place the part (ensuring the parts are next to each
-//     other on each placement)
-// (5) goto 3 if unable to place all parts and goto 1 if still unable
-//     to place all parts after X iterations
-
-let best_score = 0;
-
-let tiles = bfs_tile_list(43, 24, (nx, ny) => {
-  const v = room.get(nx, ny);
-  return v;
-});
-
-const mp = {
-  0: 'W',
-  1: ' ',
-  2: 'E',
-  3: 'S',
-  4: 'L',
-  5: 'R',
-  6: 'T',
-  7: 'O',
-  8: 'P',
-  9: 'X',
-  10: 'M',
-  11: 'A',
-  12: 'N',
-  13: 'F',
-  14: '_',
-};
-
-let count = 0;
-
-//for (let w = 0; w < 10000; ++w) {
-while (true) {
-  let part_list = randomly_select_complete_set_of_parts();
-  let res = try_placing_parts_via_tiles(rimage, part_list, tiles);
-  let simage = res.simage;
-  let score = res.score;
-  tiles = res.tiles;
-
-  if (score > best_score) {
-    best_score = score;
-    for (let y = 0; y < 50; ++y) {
-      let row = [];
-      for (let x = 0; x < 50; ++x) {
-        let v = new String(simage.get(x, y));    
-        row.push(mp[v]);
-      }
-      row = row.join('');
-      console.log(row);
-    }
-    console.log('score', score, count);
-  }
-
-  count++;
-}
-
-
+const planner = new Planner();
+// sources
+planner.add_reqspot(11, 10, 2);
+planner.add_reqspot(15, 6, 2);
+// controller
+planner.add_reqspot(10, 30, 2);
+// mineral
+planner.add_reqspot(27, 34, 2);
+planner.plan(room);
 

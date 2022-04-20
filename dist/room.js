@@ -24,6 +24,8 @@ class Room {
     this.memory = this.room.memory;
     this.controller = this.room.controller;
 
+    this.memory.clink_orders = this.memory.clink_orders || [];
+
     this.room.memory.mi = this.room.memory.mi || {};
     this.room.memory.jobs = this.room.memory.jobs || [];
     this.jobs = this.room.memory.jobs;
@@ -48,6 +50,9 @@ class Room {
     this.towers = [];
     this.structs = [];
     this.roads = [];
+    this.walls = [];
+    this.ramparts = [];
+    this.walls_and_ramparts = [];
     this.containers = [];
     this.containers_near_sources = [];
     this.active_containers_near_sources = [];
@@ -634,6 +639,21 @@ class Room {
     });
   }
 
+  get_controller_link () {
+    const c = this.room.controller;
+    if (!c) {
+      return null;
+    }
+
+    const links = _.filter(this.links, link => link.pos.getRangeTo(c) < 2.2);
+
+    if (links.length === 0) {
+      return null;
+    }
+
+    return links[0];
+  }
+
   container_evaluate_state (cont, on_amount, off_amount) {
     let m = this.room.memory;
     m.aconts = m.aconts || {};
@@ -684,6 +704,14 @@ class Room {
         case game.STRUCTURE_SPAWN: this.spawns.push(s); return;
         case game.STRUCTURE_ROAD: this.roads.push(s); return;
         case game.STRUCTURE_LAB: this.labs.push(s); return;
+        case game.STRUCTURE_RAMPART: 
+          this.ramparts.push(s); 
+          this.walls_and_ramparts.push(s);
+          return;
+        case game.STRUCTURE_WALL: 
+          this.walls.push(s); 
+          this.walls_and_ramparts.push(s);
+          return;
         case game.STRUCTURE_EXTRACTOR: this.extractors.push(s); return;
         case game.STRUCTURE_LINK:
           this.links.push(s);
@@ -752,12 +780,22 @@ class Room {
     });
 
     if (valid_hcreeps.length > 0) {
+      // Handle hostile creeps.
       const fhcreep = _.sample(valid_hcreeps);
       _.each(this.towers, tower => tower.attack(fhcreep));
     } else {
       const road = _.sample(_.filter(this.roads, road => road.hits / road.hitsMax < 0.5));
       if (road) {
+        // Handle road repairs.
         _.each(this.towers, tower => tower.repair(road));
+      } else {
+        // Handle ramparts and walls.
+        if (Game.time % 4 === 0) {
+          const target = this.walls_and_ramparts.sort((a, b) => a.hits - b.hits)[0];
+          if (target) {
+            _.each(this.towers, tower => tower.repair(target));
+          }
+        }
       }
     }
 
@@ -801,6 +839,29 @@ class Room {
       this.dt_pull_energy_containers_nearby_sources({}),
       this.dt_pull_sources(true),
     ];
+
+    const clink = this.get_controller_link();
+
+    // Instead of the hauler moving energy to the controller
+    // the miner at the farthest source will complete orders
+    // created below.
+    if (clink !== null) {
+      const delta = 15;
+      this.memory.clink_amount = (this.memory.clink_amount || 0) + delta;
+
+      if (this.memory.clink_amount > 800) {
+        this.memory.clink_amount = 800;
+      }
+
+      if (this.memory.clink_amount >= 400) {
+        this.memory.clink_amount -= 400;
+        this.memory.clink_orders.push(400);
+      }
+
+      while (_.sumBy(this.memory.clink_orders, order => order) > 1600) {
+        this.memory.clink_orders.shift();
+      }
+    }
 
     let dt_hauler_pull = [
       this.dt_cond(
@@ -863,7 +924,12 @@ class Room {
           this.dt_push_to_objects_with_stores(1.0, this.spawns.concat(this.exts)),
           this.dt_push_to_objects_with_stores(1.0, this.towers),
           // TODO: Use link once upgrader has built it.
-          this.dt_push_to_objects_with_stores(1.0, this.active_containers_adj_controller),
+          this.dt_cond(
+            () => clink === null,
+            [
+              this.dt_push_to_objects_with_stores(1.0, this.active_containers_adj_controller),
+            ]
+          ),
           this.dt_push_storage(1000000),
         ]
       ),
@@ -1351,7 +1417,7 @@ class Room {
     };
   }
 
-  dt_push_to_objects_with_stores (threshold, objlist, oneshot) {
+  dt_push_to_objects_with_stores (threshold, objlist, oneshot, least_first=false) {
     return (creep) => {
       let valids = _.filter(
         objlist, s => {

@@ -116,13 +116,33 @@ class CreepMiner extends Creep {
         const total_capacity = this.creep.store.getCapacity(game.RESOURCE_ENERGY);
         const used_capacity = this.creep.store.getUsedCapacity(game.RESOURCE_ENERGY);
         if (send_energy && used_capacity > total_capacity * 0.5) {
+          const clink_orders = this.room.memory.clink_orders;
+
           this.creep.transfer(link, game.RESOURCE_ENERGY);
-          const link_total_capacity = link.store.getCapacity(game.RESOURCE_ENERGY);
-          const link_used_capacity = link.store.getUsedCapacity(game.RESOURCE_ENERGY);
-          if (link.cooldown === 0 &&
-              link.isActive() && 
-              link_used_capacity > link_total_capacity * 0.9) {
-            logging.info('link.transfer', link.transferEnergy(dlink));
+
+          while (clink_orders[0] === 0) {
+            clink_orders.shift();
+          }
+
+          const clink = this.room.get_controller_link();
+
+          if (clink !== null && clink_orders.length > 0) {
+            // Try to complete the clink orders.
+            if (link.store.getUsedCapacity(game.RESOURCE_ENERGY) >= clink_orders[0]) {
+              if (clink.store.getFreeCapacity(game.RESOURCE_ENERGY) >= clink_orders[0]) {
+                link.transferEnergy(clink, clink_orders[0]);
+                clink_orders[0] = 0;
+              }
+            }
+          } else {
+            // Without any clink orders.
+            const link_total_capacity = link.store.getCapacity(game.RESOURCE_ENERGY);
+            const link_used_capacity = link.store.getUsedCapacity(game.RESOURCE_ENERGY);
+            if (link.cooldown === 0 &&
+                link.isActive() && 
+                link_used_capacity > link_total_capacity * 0.9) {
+              logging.info('link.transfer', link.transferEnergy(dlink));
+            }
           }
         }
       }
