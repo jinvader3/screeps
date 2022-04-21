@@ -84,11 +84,15 @@ class CreepMiner extends Creep {
     // Look for chest around the source.
     const cont = this.find_container_near_source(source);
     logging.debug(`cont:${cont}`);
+      
+    // Okay, send energy via the link IF the we are the furthest miner
+    // OR the controller has a nearby link.
+    const clink = this.room.get_controller_link();
+    const send_energy = this.will_i_send_energy_toward_spawn(cont) || (clink !== null);
 
     if (cont) {
       const link = this.find_link_near_container(cont);
       const dlink = this.find_link_near_storage();
-      const send_energy = this.will_i_send_energy_toward_spawn(cont);
 
       logging.debug(`send_energy=${send_energy}`);
 
@@ -107,7 +111,7 @@ class CreepMiner extends Creep {
           );
         }
       }
-
+          
       if (!cont.pos.isEqualTo(this.creep.pos)) {
         this.move_to(cont);
       } else {
@@ -115,16 +119,18 @@ class CreepMiner extends Creep {
         // Decrease CPU usage by only transfering when our capacity is at half.
         const total_capacity = this.creep.store.getCapacity(game.RESOURCE_ENERGY);
         const used_capacity = this.creep.store.getUsedCapacity(game.RESOURCE_ENERGY);
-        if (send_energy && used_capacity > total_capacity * 0.5) {
-          const clink_orders = this.room.memory.clink_orders;
+        const clink_orders = this.room.memory.clink_orders;
+        
+        while (clink_orders[0] === 0) {
+          clink_orders.shift();
+        }
+
+        // (1) Ignore clink if clink_orders is zero.
+        // (2) Send_energy must be set.
+        // (3) Don't send energy every tick. Wait for half full.
+        if (send_energy && used_capacity > total_capacity * 0.5 && clink_orders.length > 0) {
 
           this.creep.transfer(link, game.RESOURCE_ENERGY);
-
-          while (clink_orders[0] === 0) {
-            clink_orders.shift();
-          }
-
-          const clink = this.room.get_controller_link();
 
           if (clink !== null && clink_orders.length > 0) {
             // Try to complete the clink orders.

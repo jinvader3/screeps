@@ -36,6 +36,11 @@ module.exports.register = function () {
 
   Game.show_comp_orders_room = (room) => {
     const m = game.memory().rooms[room];
+
+    if (m === undefined) {
+      return ['==${room}==', 'Bad Room'].join('<br/>');
+    }
+
     const comp_orders = m.labman_comp_orders;
     
     if (comp_orders === undefined) {
@@ -184,11 +189,26 @@ module.exports.register = function () {
   Game.lab_enable = (room_name, enabled) => {
     ecfg[room_name] = ecfg[room_name] || {};
     ecfg[room_name].lab = enabled;
-    return `Lab enabled for room ${room_name}`;
+    return `Lab enabled=${enabled} for room ${room_name}`;
   };
 
   Game.lab_enable.help = {
     desc: 'Turn the labman on/off for the room specified.',
+  };
+
+  Game.lab_boosts = (room_name, enabled) => {
+    ecfg[room_name] = ecfg[room_name] || {};
+    ecfg[room_name].lab_boosting = enabled;
+
+    if (enabled) {
+      return `Lab enabled for boosting for room ${room_name}.`;
+    } else {
+      return `Lab disabled for boosting for room ${room_name}.`;
+    }
+  };
+
+  Game.lab_boosts.help = {
+    desc: 'Switch the labman mode into boost mode.',
   };
 
   Game.autobuild_on = (room_name) => {

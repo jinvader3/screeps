@@ -189,7 +189,7 @@ class Terminal {
 
     for (let x = 0; x < w.length; ++x) {
       let o = w[x];
-      console.log(x, o); 
+      console.log(x, o.product); 
     }
 
     let et = game.time();

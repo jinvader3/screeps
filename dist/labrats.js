@@ -32,6 +32,8 @@ class LabManager {
 
     this.term = new Terminal(room);
     this.has_terminal_structure = this.term.has_terminal_structure();
+    
+    this.boosting = room.ecfg.lab_boosting || false;
 
     const gm = game.memory();
 
@@ -88,10 +90,14 @@ class LabManager {
     }
 
     // Sell things between work orders.
-    if (this.comp_orders.length === 0) { // && game.market().credits < 10000) {
+    if (game.market().credits < 100000) {
       let ctask = task.spawn_isolated(8, `terminal_seller`, ctask => {
         for (let rtype in term_obj.store) {
-          if (rtype === game.RESOURCE_ENERGY) {
+          //if (rtype !== game.RESOURCE_ENERGY && rtype != 'XKH2O') {
+          //  continue;
+          //}
+
+          if (rtype !== 'XKH2O') {
             continue;
           }
 
@@ -102,7 +108,7 @@ class LabManager {
           if (border) {
             let t_cost = game.market().calcTransactionCost(amount, this.room.get_name(), border.roomName);
             let deal_res = game.market().deal(
-              border.id, Math.min(amount, border.amount), this.room.get_name()
+              border.id, Math.min(amount - t_cost, border.amount), this.room.get_name()
             );
             logging.info(`deal_res = ${deal_res} for ${rtype} amount ${amount}`);
             return;
@@ -309,6 +315,7 @@ class LabManager {
 
     // Do any selling to generate needed credits.
     this.maintain_credits(term_obj, task);
+ 
     // Do the buying for current orders.
     this.comp_order_deals(term_obj); 
 
@@ -361,13 +368,20 @@ class LabManager {
       }
     }
 
-    let best_trade = gm.trades[0];
+    // TODO: Make this configurable. Either choose the best profit wise
+    //       or choose a specific product to create or create specific
+    //       amounts of specific products.
+    let best_trade = _.filter(gm.trades, trade => trade.product === 'XGH2O')[0]
+    //let best_trade = gm.trades[0];
+
     let profit_delta = best_trade.demand_price - best_trade.factory_price
 
     // TODO: Consider the fact that the supply_price may be lower than the demand_price!
 
     this.m.best_trade = best_trade;
     this.m.profit_delta = profit_delta;
+
+    //console.log(`profit_delta=${profit_delta} factory_price=${best_trade.factory_price}`);
 
     /////////////////////////////////////////////////////////////////////////
     // If the price is right then build the `comp_orders` array.           //
@@ -378,6 +392,10 @@ class LabManager {
     }
 
     if (this.comp_orders.length === 0) {
+      // Do any selling to generate needed credits. At this point, we can sell
+      // anything in the terminal. 
+      //this.maintain_credits(term_obj, task, true);
+
       this.build_new_comp_orders(term_obj, labs, best_trade);
     }
   }
@@ -454,6 +472,81 @@ class LabManager {
     }
   }
 
+  move_product_out_of_lab (term_obj, mover, name, lab) {
+    const lab_what = Object.keys(lab.store)[0];
+    if (lab_what) {
+      mover.stmh_set(name, ss => {
+        mover.stmh_dump_store_to_object(ss, this.room.get_storage());
+        mover.stmh_load_resource_from_store(ss, lab, lab_what);
+        mover.stmh_dump_store_to_object(ss, term_obj);
+        return true;
+      });
+    }    
+  }
+
+  move_product_into_lab (term_obj, mover, name, lab, what) {
+    if (term_obj.store.getUsedCapacity(what) > 0) {
+      mover.stmh_set(name, ss => {
+        mover.stmh_dump_store_to_object(ss, this.room.get_storage());
+        mover.stmh_load_resource_from_store(ss, term_obj, what);
+        mover.stmh_dump_store_to_object(ss, lab);
+        return true;
+      });
+    }
+  }
+  
+  tick_boosting (task, creeps, labs, movers) { 
+    const term_obj = this.room.get_terminal();
+
+    if (movers.length === 0) {
+      return;
+    }
+
+    const mover = movers[0];   
+ 
+    // TODO: Make this configurable.
+    const lab_setup = ['XGH2O'];
+
+
+    for (let lndx = 0; lndx < lab_setup.length; ++lndx) {
+      logging.info(`inspecting lab setup ${lndx}`);
+      const lab_has = _.filter(Object.keys(labs[lndx].store), n => n !== game.RESOURCE_ENERGY)[0];
+      const lab_need = lab_setup[lndx];
+      const lab_free = labs[lndx].store.getFreeCapacity(lab_need);
+      const term_amount = term_obj.store.getUsedCapacity(lab_need);
+
+      logging.info(lab_has, lab_free, lab_need, term_amount);
+
+      if (lab_has && lab_has !== lab_need) {
+        // Clear out the lab's contents.
+        logging.info(`moving product ${lab_has} out of lab ${lndx}`);
+        this.move_product_out_of_lab(
+          term_obj, mover, `boosting_move_out_${lndx}`, labs[lndx]
+        );
+        continue;
+      }
+
+      const can_move = Math.min(lab_free, term_amount);
+
+      if (can_move > 0) {
+        // Try to add more.
+        logging.info(`moving ${lab_need} into lab ${lndx}`);
+        this.move_product_into_lab(
+          term_obj, mover, `boosting_move_into_${lndx}`, labs[lndx], lab_need
+        );
+        continue;
+      }
+
+      if (labs[lndx].store.getFreeCapacity(game.RESOURCE_ENERGY) > 0) {
+        this.move_product_into_lab(
+          this.room.get_storage(), mover, `boosting_move_energy_into_${lndx}`, 
+          labs[lndx], game.RESOURCE_ENERGY
+        );
+        continue;
+      }
+    }
+  }
+
   tick (task, creeps, labs, extractors) {
     if (labs.length < 3 || !this.has_terminal_structure) {
       return;
@@ -524,9 +617,13 @@ class LabManager {
       }
     }
 
-    // (2/4) look at the trade data and see what we can try to build
-    // (3/4) look at what we can sell and sell it
-    this.tick_trade(task, creeps, labs, movers);
+   if (this.boosting) {
+      this.tick_boosting(task, creeps, labs, movers);  
+    } else {
+      // (2/4) look at the trade data and see what we can try to build
+      // (3/4) look at what we can sell and sell it
+      this.tick_trade(task, creeps, labs, movers);
+    }
 
     // (4/4) let creeps ticks
     for (let creep of creeps) {

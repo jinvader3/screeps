@@ -14,6 +14,7 @@ const { CreepLabRat, LabManager } = require('./labrats');
 const { logging } = require('./logging');
 const { AutoBuilder } = require('./autobuild');
 const { AutoBuild2 } = require('./autobuild2');
+const { CreepBooster } = require('./creepbooster');
 
 class Room {
   constructor (room, gecfg, ecfg) {
@@ -181,7 +182,12 @@ class Room {
     this.hook_creep_method(creep, 'withdraw', 'st_wt');
     this.hook_creep_method(creep, 'transfer', 'st_xf');
 
-    switch (creep.memory.c) {
+    const c = creep.memory.sc !== undefined ? creep.memory.sc : creep.memory.c;
+
+    switch (c) {
+      case 'booster':
+        this.creeps.push(new CreepBooster(this, creep));
+        break;
       case 'gw': 
         this.creeps.push(new CreepGeneralWorker(this, creep));
         break;
@@ -226,7 +232,6 @@ class Room {
       'hauler': 0,
       'minera': 0,
       'minerb': 0,
-      'fighter1': 0,
       'upgrader': 0,
     };
 
@@ -403,6 +408,7 @@ class Room {
               tr: op.tr,
               // The allowable rooms or undefined for allow all.
               ar: op.ar,
+              cpu: 1,
             }
           );
         } else {
@@ -425,6 +431,7 @@ class Room {
                 // The target room.
                 tr: op.tr,
                 ar: op.ar,
+                cpu: 0.32,
               }
             );            
           }
@@ -634,7 +641,9 @@ class Room {
       max_level: upgrader_level,
       priority: 2,
       count: 1,
-      memory: {},
+      memory: {
+        sc: 'booster',
+      },
       post_ticks: this.memory.upgrader_path,
     });
   }
@@ -784,13 +793,16 @@ class Room {
       const fhcreep = _.sample(valid_hcreeps);
       _.each(this.towers, tower => tower.attack(fhcreep));
     } else {
-      const road = _.sample(_.filter(this.roads, road => road.hits / road.hitsMax < 0.5));
-      if (road) {
+      const roads_and_containers = _.filter(
+        this.structs, s => s.structureType === game.STRUCTURE_ROAD || s.structureType === game.STRUCTURE_CONTAINER
+      );
+      const a_struct = _.sample(_.filter(roads_and_containers, s => s.hits / s.hitsMax < 0.5));
+      if (a_struct) {
         // Handle road repairs.
-        _.each(this.towers, tower => tower.repair(road));
+        _.each(this.towers, tower => tower.repair(a_struct));
       } else {
         // Handle ramparts and walls.
-        if (Game.time % 4 === 0) {
+        if (Game.time % 20 === 0) {
           const target = this.walls_and_ramparts.sort((a, b) => a.hits - b.hits)[0];
           if (target) {
             _.each(this.towers, tower => tower.repair(target));
@@ -844,9 +856,16 @@ class Room {
 
     // Instead of the hauler moving energy to the controller
     // the miner at the farthest source will complete orders
-    // created below.
-    if (clink !== null) {
-      const delta = 15;
+    // created below _BUT_ disable this mechanism if the storage
+    // falls below a certain threshold because we don't want to
+    // starve the spawn.
+    const clink_orders = this.memory.clink_orders;
+    let clink_active = false;
+
+    if (clink !== null && this.room.storage && this.room.storage.store.getUsedCapacity(game.RESOURCE_ENERGY) > 10000) {
+      clink_active = true;      
+
+      const delta = 12;
       this.memory.clink_amount = (this.memory.clink_amount || 0) + delta;
 
       if (this.memory.clink_amount > 800) {
@@ -855,11 +874,11 @@ class Room {
 
       if (this.memory.clink_amount >= 400) {
         this.memory.clink_amount -= 400;
-        this.memory.clink_orders.push(400);
+        clink_orders.push(400);
       }
 
-      while (_.sumBy(this.memory.clink_orders, order => order) > 1600) {
-        this.memory.clink_orders.shift();
+      while (_.sumBy(clink_orders, order => order) > 1600) {
+        clink_orders.shift();
       }
     }
 
@@ -885,15 +904,21 @@ class Room {
         ],
         [
           // If there are no workers. Then, do their job.
-          this.dt_pull_from_objects_with_stores(
-            0.0, this.links_nearest_storage, {},
-            lst => { 
-              lst.sort((a, b) => {
-                return a.store.getUsedCapacity(game.RESOURCE_ENERGY) >
-                       b.store.getUsedCapacity(game.RESOURCE_ENERGY) ? -1 : 1;
-              })
-              return lst[0];
-            }
+          this.dt_cond(
+            // Don't pull from links if clink is active.
+            () => !clink_active,
+            [
+              this.dt_pull_from_objects_with_stores(
+                0.0, this.links_nearest_storage, {},
+                lst => { 
+                  lst.sort((a, b) => {
+                    return a.store.getUsedCapacity(game.RESOURCE_ENERGY) >
+                           b.store.getUsedCapacity(game.RESOURCE_ENERGY) ? -1 : 1;
+                  })
+                  return lst[0];
+                }
+              ),
+            ]
           ),
           this.dt_pull_from_objects_with_stores(
             0.0, this.active_containers_near_sources
@@ -936,7 +961,6 @@ class Room {
     ];
 
     let lab_creeps = [];
-
     let all_creeps = this.room.find(game.FIND_CREEPS);
 
     for (let ndx in this.creeps) {
@@ -971,7 +995,7 @@ class Room {
         });
       }
 
-      task.transfer(ctask, 0.32, 20);
+      task.transfer(ctask, creep.get_memory().cpu || 0.32, 20);
     }
 
     if (this.ecfg.lab) {
@@ -979,7 +1003,7 @@ class Room {
         let labman = new LabManager(this);
         labman.tick(ctask, lab_creeps, this.labs, this.extractors);
       });
-      task.transfer(lab_task, 1, 5);
+      task.transfer(lab_task, 0.2, 5);
     }
 
 
@@ -1144,7 +1168,7 @@ class Room {
   dt_repair_non_wall (threshold, oneshot) {
     return (creep) => {
       let valid = _.filter(this.structs, s => {
-        if (s.structureType === game.STRUCTURE_WALL) {
+        if (s.structureType === game.STRUCTURE_WALL || s.structureType === game.STRUCTURE_RAMPART) {
           return false;
         }
         return (s.hits / s.hitsMax) < threshold;
