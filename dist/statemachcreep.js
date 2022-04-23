@@ -10,8 +10,6 @@ class StateMachineCreep extends Creep {
     // The memory persistent state stack.
     cm.ss_ids = cm.ss_ids || {};
     cm.ss = cm.ss || [];
-
-    this.dump_logging_info();
   }
 
   dump_logging_info () {
@@ -29,11 +27,9 @@ class StateMachineCreep extends Creep {
   }
 
   execute_stack_single () {
-    logging.debug('execute_stack_single()');
     const cm = this.creep.memory;
     
     if (cm.ss.length === 0) {
-      logging.debug('There are no states to execute.');
       return false;
     }
 
@@ -42,32 +38,26 @@ class StateMachineCreep extends Creep {
     let fparams = fentry[1];
     let uid = fentry[2];
 
-    logging.debug(`fentry ${fentry}`);
-
     if (fname === null || this[fname](fparams)) {
-      logging.debug('function return was true');
       // If the function returns true then it means that the state has
       // been completed and it can be removed.
       cm.ss = cm.ss.splice(1);
       if (uid) {
-        logging.debug(`popping uid ${uid}`);
         delete cm.ss_ids[uid];
       }
       return true;
     } else {
-      logging.debug('function return was false [pending stack pop]');
+      //logging.debug('function return was false [pending stack pop]');
     }
   
     return false;
   }
 
   execute_stack () {
-    logging.debug('execute_stack()');
     // As long as states are being popped on each
     // call then continue to make the call.
     while (this.execute_stack_single()) {
       // no-op
-      logging.debug('execute_stack repeat');
     }
   }
 
@@ -82,7 +72,6 @@ class StateMachineCreep extends Creep {
     let rtypes = Object.keys(this.creep.store);
     
     if (rtypes.length === 0) {
-      logging.debug('There is nothing left to transfer.');
       // There is nothing left to transfer.
       return true;
     }
@@ -192,6 +181,7 @@ class StateMachineCreep extends Creep {
 
   move_to (trgt) {
     return this.creep.moveTo(trgt, {
+      reusePath: 20,
       visualizePathStyle: {
         fill: 'transparent',
         stroke: '#99ff99',

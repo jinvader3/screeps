@@ -61,7 +61,7 @@ class LabManager {
           logging.info('state set pushed');
           return true;
         }); 
-        mover.dump_logging_info();
+        //mover.dump_logging_info();
       } else {
         logging.info('I have no labrat to move energy into the terminal...');
       }
@@ -116,7 +116,7 @@ class LabManager {
         }
       });
 
-      task.transfer(ctask, 0.2, 1);
+      task.transfer(ctask, 0.1, 1);
     }
   }
 
@@ -127,7 +127,7 @@ class LabManager {
           //logging.info(`Thinking about buying for corder ${corder.what} at count ${corder.count}.`);
           // Look for the item at the best price.
           const sorder = this.term.find_best_seller(corder.what);
-          if (term_obj.cooldown === 0) {
+          if (sorder && term_obj.cooldown === 0) {
             let deal_res = game.market().deal(sorder.id, corder.count, this.room.get_name());
             //logging.info(`deal_res = ${deal_res}`);
             if (deal_res === game.OK) {
@@ -368,34 +368,38 @@ class LabManager {
       }
     }
 
-    // TODO: Make this configurable. Either choose the best profit wise
-    //       or choose a specific product to create or create specific
-    //       amounts of specific products.
-    let best_trade = _.filter(gm.trades, trade => trade.product === 'XGH2O')[0]
-    //let best_trade = gm.trades[0];
-
-    let profit_delta = best_trade.demand_price - best_trade.factory_price
-
-    // TODO: Consider the fact that the supply_price may be lower than the demand_price!
-
-    this.m.best_trade = best_trade;
-    this.m.profit_delta = profit_delta;
-
-    //console.log(`profit_delta=${profit_delta} factory_price=${best_trade.factory_price}`);
-
-    /////////////////////////////////////////////////////////////////////////
-    // If the price is right then build the `comp_orders` array.           //
-    /////////////////////////////////////////////////////////////////////////
-    if (profit_delta < -10) {
-      logging.info('The best trade\'s factory price is larger than demand price.');
-      return;
-    }
-
     if (this.comp_orders.length === 0) {
+      // TODO: Make this configurable. Either choose the best profit wise
+      //       or choose a specific product to create or create specific
+      //       amounts of specific products.
+      let best_trade = _.filter(gm.trades, trade => trade.product === 'XGH2O')[0]
+      //let best_trade = gm.trades[0];
+
+      let profit_delta = best_trade.demand_price - best_trade.factory_price
+
+      // TODO: Consider the fact that the supply_price may be lower than the demand_price!
+
+      this.m.best_trade = best_trade;
+      this.m.profit_delta = profit_delta;
+
+      //console.log(`profit_delta=${profit_delta} factory_price=${best_trade.factory_price}`);
+
+      /////////////////////////////////////////////////////////////////////////
+      // If the price is right then build the `comp_orders` array.           //
+      /////////////////////////////////////////////////////////////////////////
+      //if (profit_delta < -10) {
+      //  logging.info('The best trade\'s factory price is larger than demand price.');
+      //  return;
+      //}
+
+      logging.info(`The factory price is ${best_trade.factory_price}.`);
+      if (best_trade.factory_price > 100) {
+        logging.info('The factory price exceeds the set threshold.');
+      }
+
       // Do any selling to generate needed credits. At this point, we can sell
       // anything in the terminal. 
       //this.maintain_credits(term_obj, task, true);
-
       this.build_new_comp_orders(term_obj, labs, best_trade);
     }
   }
@@ -636,7 +640,7 @@ class LabManager {
         }
       });
 
-      task.transfer(ctask, 0.1, 40);
+      task.transfer(ctask, creep.creep.memory.cpu || 0.6, 2);
     }
     ///////////////////////////    
   }

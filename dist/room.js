@@ -643,6 +643,7 @@ class Room {
       count: 1,
       memory: {
         sc: 'booster',
+        can_use: ['XGH2O', 'GH2O', 'GH'],
       },
       post_ticks: this.memory.upgrader_path,
     });
@@ -796,10 +797,15 @@ class Room {
       const roads_and_containers = _.filter(
         this.structs, s => s.structureType === game.STRUCTURE_ROAD || s.structureType === game.STRUCTURE_CONTAINER
       );
+
+      const a_creep = _.sample(_.filter(this.creeps, c => c.creep.hits < c.creep.hitsMax));
       const a_struct = _.sample(_.filter(roads_and_containers, s => s.hits / s.hitsMax < 0.5));
+
       if (a_struct) {
         // Handle road repairs.
         _.each(this.towers, tower => tower.repair(a_struct));
+      } else if (a_creep) {
+        _.each(this.towers, tower => tower.heal(a_creep.creep));
       } else {
         // Handle ramparts and walls.
         if (Game.time % 20 === 0) {
@@ -1003,7 +1009,7 @@ class Room {
         let labman = new LabManager(this);
         labman.tick(ctask, lab_creeps, this.labs, this.extractors);
       });
-      task.transfer(lab_task, 0.2, 5);
+      task.transfer(lab_task, 1, 5);
     }
 
 

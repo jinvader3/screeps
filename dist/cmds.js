@@ -85,7 +85,7 @@ module.exports.register = function () {
     return lines.join('<br/>');
   };
 
-  Game.show_cpuavg = () => {
+  Game.show_cpuavg = (sort_by_name) => {
     const memory = game.memory();
     // Calculate CPU usage per task.
     const tasks = memory.tasks;
@@ -96,6 +96,7 @@ module.exports.register = function () {
       const task = tasks[task_id];
       const bucket = task.amount;
       const avgcpu = task.avgsum / task.avgcnt;
+      const tpt = task.delay / task.tick;
       let creep_name = null;
       let extra = '';
 
@@ -110,13 +111,22 @@ module.exports.register = function () {
         extra = `${memory.creeps[creep_name].g}`;
       }
 
-      rows.push([task_id, avgcpu, bucket, extra]);
+      rows.push([task_id, avgcpu, bucket, tpt]);
       //console.log(`${task_id} avg=${avgcpu} bucket=${bucket} ${extra}`);
     }
 
-    rows.sort((a, b) => a[1] - b[1]);
+    if (sort_by_name) {
+      rows.sort((a, b) => a[0] > b[0] ? 1 : -1);
+    } else {
+      rows.sort((a, b) => a[1] - b[1]);
+    }
 
     let lines = [];
+
+    const h0 = 'avg'.padStart(7);
+    const h1 = 'buc'.padStart(7);
+    const h2 = 'tpt'.padStart(7);
+    lines.push(`   ${h0}${h1}${h2}`);
 
     for (let x = 0; x < rows.length; ++x) {
       const row = rows[x];
@@ -126,7 +136,13 @@ module.exports.register = function () {
       } else {
         state = '[<span style="color: green;">ON </span>]';
       }
-      lines.push(`${state} ${row[0]} avg=${row[1]} bucket=${row[2]} ${row[3]}`);
+
+      const r2 = (row[2] === null || row[2] === undefined) ? 0 : row[2];
+      const c0 = new String(row[1].toFixed(2)).padStart(7);
+      const c1 = new String(r2.toFixed(2)).padStart(7);
+      const c2 = new String(row[3].toFixed(2)).padStart(7);
+
+      lines.push(`${state}${c0}${c1}${c2} ${row[0]}`);
     }
 
     // Calculate overall CPU usage.

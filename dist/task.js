@@ -70,6 +70,14 @@ class Task {
     tasks[fname].amount = amount;
   }
 
+  _tick (delayed) {
+    let tasks = this.get_tasks();
+    let fname = this.get_full_name();
+    tasks[fname] = tasks[fname] || {};
+    tasks[fname].tick = (tasks[fname].tick || 0) + 1;
+    tasks[fname].delay = (tasks[fname].delay || 0) + (delayed === true ? 0 : 1);
+  }
+
   get_credit () {
     return this.payer._get_credit();
   }
@@ -102,9 +110,7 @@ class Task {
   run (stats) {
     let credit = this.get_credit();
     if (credit <= 0) {
-      //console.log(
-      //  `task:delayed[${this.get_full_name()}] credit=${credit}`
-      //);
+      this._tick(true);  
       return;
     }
 
@@ -119,7 +125,7 @@ class Task {
       let et = game.cpu().getUsed();
       let dt = et - st;
       this.charge(dt);
-      stats.record_stat('charge.' + this.get_full_name(), dt);
+      this._tick(false);
       return null;
     } catch (err) {
       logging.log(`[error] ${err}`);

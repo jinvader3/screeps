@@ -124,7 +124,7 @@ module.exports.loop = function () {
       rooms[rname].tick(task);
     });
     // Force each room to execute in two CPU/tick or less.
-    task.credit(2, 20);
+    task.credit(3, 20);
   }
 
   let res = te.run_tasks();

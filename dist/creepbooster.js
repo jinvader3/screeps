@@ -53,13 +53,11 @@ class CreepBooster extends Creep {
     // See if the labs have any boosts.
     const labs = this.room.labs;
     const body = this.creep.body;
+    const can_use = {};this.creep.can_use;
 
-    // TODO: Make this a configuration in the creep's memory.
-    const can_use = {
-      XGH2O: true,
-      GH2O: true,
-      GH: true,
-    };
+    _.each(this.creep.memory.can_use, cu => {
+      can_use[cu] = true;
+    });
 
     const to_visit = [];
 
