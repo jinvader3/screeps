@@ -28,6 +28,30 @@ module.exports.register = function () {
     return lines.join('');
   };
 
+  Game.show_terminals = () => {
+    const lines = [];
+    for (let rname in Game.rooms) {
+      const room = Game.rooms[rname];
+      const terminal = room.terminal;
+      if (terminal) {
+        lines.push(`<h6>${rname}</h6>`);
+        lines.push('<table>');
+        let line = [];
+        for (let product in terminal.store) {
+          const amount = terminal.store.getUsedCapacity(product);
+          if (line.length === 4) {
+            lines.push('<tr>' + line.join('') + '</tr>');
+            line = [];
+          }
+          line.push(`<td style="padding: 5px;">${product}</td><td style="padding: 5px;">${amount}</td>`);
+        }
+        lines.push('<tr>' + line.join('') + '</tr>');
+        lines.push('</table>');
+      }
+    }
+    return lines.join('');
+  };
+
   Game.autobuild2_rebuild = (room_name) => {
     const rm = Game.rooms[room_name].memory;
     rm.plan = undefined;
