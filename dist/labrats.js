@@ -34,6 +34,7 @@ class LabManager {
     this.has_terminal_structure = this.term.has_terminal_structure();
     
     this.boosting = room.ecfg.lab_boosting || false;
+    this.xfers = room.ecfg.xfers || []; 
 
     const gm = game.memory();
 
@@ -73,6 +74,7 @@ class LabManager {
     if (stor) {
       for (let rtype in stor.store) {
         if (term_obj.store.getUsedCapacity(rtype) < 1000) {
+          logging.info(`moving ${rtype} from storage to terminal`);
           mover.stmh_set(`move_${rtype}_into_terminal_1k`, ss => {
             mover.stmh_dump_store_to_object(ss, stor);
             mover.stmh_load_resource_from_store(ss, stor, rtype);
@@ -93,11 +95,7 @@ class LabManager {
     if (game.market().credits < 100000) {
       let ctask = task.spawn_isolated(8, `terminal_seller`, ctask => {
         for (let rtype in term_obj.store) {
-          //if (rtype !== game.RESOURCE_ENERGY && rtype != 'XKH2O') {
-          //  continue;
-          //}
-
-          if (rtype !== 'XKH2O') {
+          if (rtype !== game.RESOURCE_ENERGY) {
             continue;
           }
 
@@ -511,7 +509,6 @@ class LabManager {
     // TODO: Make this configurable.
     const lab_setup = ['XGH2O'];
 
-
     for (let lndx = 0; lndx < lab_setup.length; ++lndx) {
       logging.info(`inspecting lab setup ${lndx}`);
       const lab_has = _.filter(Object.keys(labs[lndx].store), n => n !== game.RESOURCE_ENERGY)[0];
@@ -621,7 +618,43 @@ class LabManager {
       }
     }
 
-   if (this.boosting) {
+    // ==============================
+    // TRANSFER PRODUCTS TO TARGET ROOMS
+    // ==============================
+    logging.wrapper('xfer', () => {
+      if (!this.term) {
+        logging.info('xfer requires a terminal');
+        return;
+      }
+
+      if (this.xfers.length > 0) {
+        _.each(this.xfers, xfer => {
+          const product = xfer.product;
+          const threshold = xfer.threshold || 100;
+          const target_room = xfer.target_room;
+          
+          if (!Game.rooms[target_room]) {
+            logging.info(`xfer failed; target room ${target_room} not visible`);
+            return;
+          }
+    
+          const amount = this.term.term.store.getUsedCapacity(product);
+          
+          if (amount < threshold) {
+            logging.info(`xfer[${amount}] threshold ${threshold} for ${product} not reached`);
+            return;
+          }
+  
+          this.term.term.send(product, amount, target_room, 'automated xfer');
+        });
+      } else {
+        logging.info('no xfers');
+      }
+    });
+    //
+
+    if (this.boosting) {
+      this.tick_equalize_onto_terminal(this.room.get_storage(), movers[0], this.term.term);
       this.tick_boosting(task, creeps, labs, movers);  
     } else {
       // (2/4) look at the trade data and see what we can try to build
