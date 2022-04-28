@@ -4,6 +4,7 @@ const { CreepGeneralWorker } = require('./creepgw');
 const { CreepDummy } = require('./creepdummy');
 const { CreepMiner } = require('./creepminer');
 const { CreepFighter } = require('./creepfighter');
+const { CreepScout } = require('./creepscout');
 const { CreepClaimer } = require('./creepclaimer');
 const { CreepUpgrader } = require('./creepupgrader');
 const { SpawnManager } = require('./spawn');
@@ -212,6 +213,9 @@ class Room {
       case 'labrat':
         this.creeps.push(new CreepLabRat(this, creep));
         break;
+      case 'scout':
+        this.creeps.push(new CreepScout(this, creep));
+        break;
       default: 
         this.creeps.push(new CreepDummy(this, creep));
         break;
@@ -352,7 +356,29 @@ class Room {
         );        
       });
     }
-    
+
+    if (this.ecfg.scout) {
+      function *scout_bf () {
+        let body = [];
+        while (true) {
+          body.push(game.MOVE);
+          yield body;
+        }
+      }
+
+      this.spawnman.reg_build2({
+        clazz: 'scout',
+        group: 'scout',
+        build_gf: scout_bf,
+        max_level: 1,
+        priority: -100,
+        count: 1,
+        memory: {
+        },
+        post_ticks: 0,
+      });
+    }   
+ 
     /////////////////////////////////////////////
     if (this.ecfg.claimteam) {
       function *claimteam_bf () {
