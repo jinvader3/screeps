@@ -16,6 +16,48 @@ const { logging } = require('./logging');
 const { AutoBuilder } = require('./autobuild');
 const { AutoBuild2 } = require('./autobuild2');
 const { CreepBooster } = require('./creepbooster');
+const { PowerMiner } = require('./powermining');
+const { DepositMiner } = require('./depositmining');
+
+///////////////////////////////////////////////////
+// MODULE REGISTRATION                           //
+//                                               //
+// Modules extend the functionality of the room. //
+//                                               //
+///////////////////////////////////////////////////
+const G_modules = [];
+const G_creepclazzes = {};
+
+function register_module(mod) {
+  G_modules.push(mod);
+}
+
+function register_creep(clazz, jstype) {
+  G_creepclazzes[clazz] = jstype;
+}
+
+register_creep('booster', CreepBooster);
+register_creep('gw', CreepGeneralWorker);
+register_creep('rminer', CreepRemoteMiner);
+register_creep('rhauler', CreepRemoteHauler);
+register_creep('miner', CreepMiner);
+register_creep('fighter', CreepFighter);
+register_creep('claimer', CreepClaimer);
+register_creep('upgrader', CreepUpgrader);
+register_creep('labrat', CreepLabRat);
+register_creep('scout', CreepScout);
+
+register_module({
+  priority: 0,
+  name: 'powermining',
+  entry: (new PowerMiner()).entry, 
+});
+
+register_module({
+  priority: 0,
+  name: 'depositmining',
+  entry: (new DepositMiner()).entry, 
+});
 
 class Room {
   constructor (room, gecfg, ecfg) {
@@ -102,123 +144,13 @@ class Room {
     return this.spawnman;
   }
 
-  hook_creep_method (creep, method, stat_name) {
-    creep[`_${method}`] = creep[method];
-
-    let work_count = _.sumBy(creep.body, part => part.type === game.WORK);
-    
-    switch (method) {
-      case 'upgradeController': 
-        creep.upgradeController = trgt => {
-          let res = creep._upgradeController(trgt);
-          if (res === game.OK) {
-            let value = creep.memory[stat_name] === undefined ? 0 : creep.memory[stat_name];
-            creep.memory[stat_name] += work_count;
-          }
-          return res;
-        };
-        break;
-      case 'repair': 
-        creep.repair = trgt => {
-          let res = creep._repair(trgt);
-          if (res === game.OK) {
-            let value = creep.memory[stat_name] === undefined ? 0 : creep.memory[stat_name];
-            creep.memory[stat_name] += work_count;
-          }
-          return res;
-        };
-        break;    
-      case 'withdraw': 
-        creep.withdraw = (trgt, rtype, amt) => {
-          let res = creep._withdraw(trgt, rtype, amt);
-          if (res === game.OK) {
-            let value = creep.memory[stat_name] === undefined ? 0 : creep.memory[stat_name];
-            creep.memory[stat_name] += amt;
-          }
-          return res;
-        };
-        break; 
-      case 'transfer': 
-        creep.transfer = (trgt, rtype, amt) => {
-          let res = creep._transfer(trgt, rtype, amt);
-          if (res === game.OK) {
-            let value = creep.memory[stat_name] === undefined ? 0 : creep.memory[stat_name];
-            creep.memory[stat_name] += amt;
-          }
-          return res;
-        };
-        break;
-      case 'harvest': 
-        creep.harvest = trgt => {
-          let res = creep._harvest(trgt);
-          if (res === game.OK) {
-            let value = creep.memory[stat_name] === undefined ? 0 : creep.memory[stat_name];
-            creep.memory[stat_name] += work_count;
-          }
-          return res;
-        };
-        break;
-      default:
-        throw new Error('The method specified is unknown.'); 
-    }
-  }
-
-  add_creep_death (creep_memory) {
-    const m = creep_memory;
-    const score = (m.st_up || 0) + (m.st_rp || 0) + (m.st_xf || 0);
-    const rm = this.room.memory; 
-    rm.scores = rm.scores ? rm.scores : [];
-
-    this.record_stat('creep.death', {
-      c: m.c,
-      g: m.g,
-      score: score,
-    }); 
-  }
-
   add_creep (creep) {
-    this.hook_creep_method(creep, 'harvest', 'st_hr');
-    this.hook_creep_method(creep, 'upgradeController', 'st_up');
-    this.hook_creep_method(creep, 'repair', 'st_rp');
-    this.hook_creep_method(creep, 'withdraw', 'st_wt');
-    this.hook_creep_method(creep, 'transfer', 'st_xf');
-
     const c = creep.memory.sc !== undefined ? creep.memory.sc : creep.memory.c;
 
-    switch (c) {
-      case 'booster':
-        this.creeps.push(new CreepBooster(this, creep));
-        break;
-      case 'gw': 
-        this.creeps.push(new CreepGeneralWorker(this, creep));
-        break;
-      case 'rminer':
-        this.creeps.push(new CreepRemoteMiner(this, creep));
-        break;
-      case 'rhauler':
-        this.creeps.push(new CreepRemoteHauler(this, creep));
-        break;
-      case 'miner': 
-        this.creeps.push(new CreepMiner(this, creep));
-        break;
-      case 'fighter': 
-        this.creeps.push(new CreepFighter(this, creep));
-        break;
-      case 'claimer': 
-        this.creeps.push(new CreepClaimer(this, creep));
-        break;
-      case 'upgrader':
-        this.creeps.push(new CreepUpgrader(this, creep));
-        break;
-      case 'labrat':
-        this.creeps.push(new CreepLabRat(this, creep));
-        break;
-      case 'scout':
-        this.creeps.push(new CreepScout(this, creep));
-        break;
-      default: 
-        this.creeps.push(new CreepDummy(this, creep));
-        break;
+    if (G_creepclazzes[c] !== undefined) {
+      this.creeps.push(new G_creepclazzes[c](this, creep));
+    } else {
+      logging.warn(`The creep ${creep.name} has an unknown ${c} class.`);
     }
   }
 
@@ -1068,6 +1000,19 @@ class Room {
 
       this.spawnman.process(this, room_energy, this.creeps, this.spawns);
     });
+
+    if (task.get_credit() > 0) {
+      // Distribute the contents of our bucket across the modules.
+      const cpu_slice = Math.min(1, task.get_credit() / G_modules.length);
+      const cpu_bucket = 1;
+
+      _.each(G_modules, mod => {
+        const mod_task = task.spawn_isolated(mod.priority, `mod:${mod.name}`, ctask => {
+          mod.entry(this, ctask);
+        });
+        task.transfer(mod_task, cpu_slice || mod.cpu_slice, cpu_bucket || mod.cpu_bucket);
+      });
+    }
   }
 
   reg_put_intent (creep, trgt, restype, amount) {
@@ -1533,4 +1478,5 @@ class Room {
   }
 }
 
+module.exports.register_module = register_module;
 module.exports.Room = Room;

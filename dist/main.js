@@ -25,8 +25,6 @@ module.exports.loop = function () {
   let rooms = {};
   module.exports.rooms = rooms;
 
-  let creep_deaths = [];
-  
   Memory.ecfg = Memory.ecfg || {};
   let ecfg = Memory.ecfg; 
 
@@ -55,10 +53,6 @@ module.exports.loop = function () {
       
       let parts = name.split(':');
       let rn = parts[0];
-
-      if (rooms[rn]) {
-        rooms[rn].add_creep_death(m);
-      }
 
       delete game.memory().creeps[name];
     }
