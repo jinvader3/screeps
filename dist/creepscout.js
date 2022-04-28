@@ -2,6 +2,7 @@ const { Creep } = require('./creep');
 const game = require('./game');
 const { logging } = require('./logging');
 const _ = game._;
+const notify = require('./notify');
 
 class RoomNumber {
   constructor (room_name) {
@@ -89,26 +90,46 @@ class CreepScout extends Creep {
       report = scout_report[cur_room.name];
 
       // Take note of the controller owner.
-      report.username = cur_room.controller ? cur_room.controller.owner.username : null;
+      if (cur_room.controller && cur_room.controller.owner) {
+        report.username = cur_room.controller.owner.username;
+      } else {
+        report.username = null;
+      }
       // Take note of any power spawns.
       const deposits = cur_room.find(game.FIND_DEPOSITS);
 
-      report.deposit = _.map(deposits, d => { return {
-        last_cool_down: d.lastCooldown,
-        ticks_to_decay: d.ticksToDecay,
-        deposit_type: d.depositType,
-        cooldown: d.cooldown,
-        id: d.id,
-      };});
+      report.deposit = _.map(deposits, d => {
+        notify.push('deposit_spotted', {
+          id:          d.id,
+          room_name:   cur_room.name,
+        });
 
-      const power_bank = _.find(cur_room.find(game.FIND_STRUCTURES), e => e.structureType === game.STRUCTURE_POWER_BANK);
+        return {
+          last_cool_down: d.lastCooldown,
+          ticks_to_decay: d.ticksToDecay,
+          deposit_type:   d.depositType,
+          cooldown:       d.cooldown,
+          id:             d.id,
+        };
+      });
+
+      const power_bank = _.find(
+        cur_room.find(game.FIND_STRUCTURES), 
+        e => e.structureType === game.STRUCTURE_POWER_BANK
+      );
+
       if (power_bank !== undefined) {
+        notify.push('power_bank_spotted', {
+          id:          power_bank.id,
+          room_name:   cur_room.name,
+        });
+
         report.power_bank = {
-          id: power_bank.id,
-          power: power_bank.power,
+          id:             power_bank.id,
+          power:          power_bank.power,
           ticks_to_decay: power_bank.ticks_to_decay,
-          hits: power_bank.hits,
-          hits_max: power_bank.hitsMax,
+          hits:           power_bank.hits,
+          hits_max:       power_bank.hitsMax,
         };
       } else {
         report.power_bank = null;
