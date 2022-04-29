@@ -105,6 +105,8 @@ class CreepScout extends Creep {
         });
 
         return {
+          seen:           game.time(),
+          room_name:      cur_room.name,
           last_cool_down: d.lastCooldown,
           ticks_to_decay: d.ticksToDecay,
           deposit_type:   d.depositType,

@@ -17,7 +17,7 @@ const { AutoBuilder } = require('./autobuild');
 const { AutoBuild2 } = require('./autobuild2');
 const { CreepBooster } = require('./creepbooster');
 const { PowerMiner } = require('./powermining');
-const { DepositMiner } = require('./depositmining');
+const { DepositMiner, CreepDepositMiner } = require('./depositmining');
 
 ///////////////////////////////////////////////////
 // MODULE REGISTRATION                           //
@@ -46,6 +46,7 @@ register_creep('claimer', CreepClaimer);
 register_creep('upgrader', CreepUpgrader);
 register_creep('labrat', CreepLabRat);
 register_creep('scout', CreepScout);
+register_creep('depositminer', CreepDepositMiner);
 
 register_module({
   priority: 0,
@@ -59,10 +60,14 @@ register_module({
   entry: (new DepositMiner()).entry, 
 });
 
+/////////////////////////////////////////////////
+/////////////////////////////////////////////////
 class Room {
   constructor (room, gecfg, ecfg) {
     this.room = room;
     this.creeps = [];
+    this.creeps_by_group = {};
+
     // TODO: Deprecate access to `room.memory` in favor of this instead. Figure out
     //       a way to detect the access or even proxy it. How about ES6 Proxy objects?
     this.memory = this.room.memory;
@@ -146,9 +151,13 @@ class Room {
 
   add_creep (creep) {
     const c = creep.memory.sc !== undefined ? creep.memory.sc : creep.memory.c;
+    const g = creep.memory.g;
 
     if (G_creepclazzes[c] !== undefined) {
-      this.creeps.push(new G_creepclazzes[c](this, creep));
+      const new_obj = new G_creepclazzes[c](this, creep);
+      this.creeps_by_group[g] = this.creeps_by_group[g] || [];
+      this.creeps.push(new_obj);
+      this.creeps_by_group[g].push(new_obj);
     } else {
       logging.warn(`The creep ${creep.name} has an unknown ${c} class.`);
     }
