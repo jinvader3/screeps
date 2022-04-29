@@ -10,6 +10,11 @@ class CreepDepositMiner extends Creep {
   }
 
   inner_tick () {
+    if (this.creep.spawning) {
+      logging.debug('spawning');
+      return;
+    }
+
     const cm = this.creep.memory;
     const rm = this.room.room.memory;
     const dm = rm.depositmem || {};
@@ -117,7 +122,7 @@ class DepositMiner {
       let body = [];
       body.push(game.MOVE);
       body.push(game.CARRY);
-      while (true) {
+      for (let x = 0; x < (25 - 2); ++x) {
         body.push(game.MOVE);
         body.push(game.WORK);
         yield body;
@@ -125,7 +130,7 @@ class DepositMiner {
     } 
 
     logging.debug('ticking');
-
+    
     room.spawnman.reg_build2({
       clazz: 'depositminer',
       group: 'depositmining',
