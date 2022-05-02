@@ -515,7 +515,7 @@ class Room {
       // Once we reach RCL 6 we have labs. To save CPU don't spawn
       // any workers unless we have construction sites.
       worker_count = clevel_worker_count[clevel];
-      
+
       this.spawnman.reg_build(
         'gw',
         'worker',
@@ -996,7 +996,7 @@ class Room {
       }
     }
 
-    task.spawn(100, `spawnman`, ctask => {
+    const spawn_task = task.spawn_isolated(100, `spawnman`, ctask => {
       let room_energy = this.room.energyCapacityAvailable;
       let workers = this.group_count('worker');
       let haulers = this.group_count('hauler');
@@ -1009,6 +1009,8 @@ class Room {
 
       this.spawnman.process(this, room_energy, this.creeps, this.spawns);
     });
+
+    task.transfer(spawn_task, 1, 10);
 
     if (task.get_credit() > 0) {
       // Distribute the contents of our bucket across the modules.

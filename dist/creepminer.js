@@ -46,6 +46,11 @@ class CreepMiner extends Creep {
     // energy toward storage/spawn.
     let la = this.find_link_near_container(my_cont);
     let lb = this.find_link_near_storage();
+
+    if (!la || !lb) {
+      return false;
+    }
+
     return la.id !== lb.id;
   }
 
@@ -56,6 +61,64 @@ class CreepMiner extends Creep {
     });
 
     return links.length > 0 ? links[0] : null;
+  }
+
+  find_link_near_source (source) {
+    let links = _.filter(
+      source.pos.findInRange(game.FIND_STRUCTURES, 2.8),
+      struct => struct.structureType === game.STRUCTURE_LINK
+    );
+  
+    return links.length > 0 ? links[0] : null;
+  }
+
+  spot_valid_csite (pos) {
+    const objs = pos.look();
+    if (_.find(objs, e => e.type === 'structure')) {
+      return false;
+    }
+
+    if (_.find(objs, e => e.terrain === 'wall')) {
+      return false;
+    }
+
+    return true;
+  }
+
+  find_csite_near_source (source) {
+    const link = this.find_link_near_source(source);
+    const moves = [
+      [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0],
+      [-1, -1], [0, -1], [1, -1],
+    ];
+
+    const spots = [];
+
+    for (let move of moves) {
+      const pos = new RoomPosition(
+        source.pos.x + move[0], 
+        source.pos.y + move[1], 
+        source.pos.roomName
+      );
+      
+      if (!this.spot_valid_csite(pos)) {
+        continue;
+      }
+
+      if (link) {
+        if (pos.getRangeTo(source) > 1) {
+          continue;
+        }
+        
+        if (pos.getRangeTo(link) > 1) {
+          continue;
+        }
+      }
+
+      spots.push(pos);
+    }
+
+    return spots.length > 0 ? spots[0] : null;
   }
 
   get_my_source () {
@@ -88,9 +151,10 @@ class CreepMiner extends Creep {
     // Okay, send energy via the link IF the we are the furthest miner
     // OR the controller has a nearby link.
     const clink = this.room.get_controller_link();
-    const send_energy = this.will_i_send_energy_toward_spawn(cont) || (clink !== null);
 
     if (cont) {
+      const send_energy = this.will_i_send_energy_toward_spawn(cont) 
+                          || (clink !== null);
       const link = this.find_link_near_container(cont);
       const dlink = this.find_link_near_storage();
 
@@ -128,26 +192,28 @@ class CreepMiner extends Creep {
         // (1) Ignore clink if clink_orders is zero.
         // (2) Send_energy must be set.
         // (3) Don't send energy every tick. Wait for half full.
-        if (send_energy && used_capacity > total_capacity * 0.5 && clink_orders.length > 0) {
+        if (link && clink) {
+          if (send_energy && used_capacity > total_capacity * 0.5 && clink_orders.length > 0) {
 
-          this.creep.transfer(link, game.RESOURCE_ENERGY);
+            this.creep.transfer(link, game.RESOURCE_ENERGY);
 
-          if (clink !== null && clink_orders.length > 0) {
-            // Try to complete the clink orders.
-            if (link.store.getUsedCapacity(game.RESOURCE_ENERGY) >= clink_orders[0]) {
-              if (clink.store.getFreeCapacity(game.RESOURCE_ENERGY) >= clink_orders[0]) {
-                link.transferEnergy(clink, clink_orders[0]);
-                clink_orders[0] = 0;
+            if (clink !== null && clink_orders.length > 0) {
+              // Try to complete the clink orders.
+              if (link.store.getUsedCapacity(game.RESOURCE_ENERGY) >= clink_orders[0]) {
+                if (clink.store.getFreeCapacity(game.RESOURCE_ENERGY) >= clink_orders[0]) {
+                  link.transferEnergy(clink, clink_orders[0]);
+                  clink_orders[0] = 0;
+                }
               }
-            }
-          } else {
-            // Without any clink orders.
-            const link_total_capacity = link.store.getCapacity(game.RESOURCE_ENERGY);
-            const link_used_capacity = link.store.getUsedCapacity(game.RESOURCE_ENERGY);
-            if (link.cooldown === 0 &&
-                link.isActive() && 
-                link_used_capacity > link_total_capacity * 0.9) {
-              logging.info('link.transfer', link.transferEnergy(dlink));
+            } else {
+              // Without any clink orders.
+              const link_total_capacity = link.store.getCapacity(game.RESOURCE_ENERGY);
+              const link_used_capacity = link.store.getUsedCapacity(game.RESOURCE_ENERGY);
+              if (link.cooldown === 0 &&
+                  link.isActive() && 
+                  link_used_capacity > link_total_capacity * 0.9) {
+                logging.info('link.transfer', link.transferEnergy(dlink));
+              }
             }
           }
         }
@@ -162,11 +228,11 @@ class CreepMiner extends Creep {
         logging.debug('thinking about creating csite for contanier');
         // Check if a construction site already exists. This is a simple
         // method. It is not accurate.
-        // TODO: push construction requests to the room for evaluation
-        //       and planning
         if (this.room.csites.length === 0) { 
+          const pos = this.find_csite_near_source(source);
+          logging.debug(`csite pos.x=${pos.x} pos.y=${pos.y}`);
           this.room.room.createConstructionSite(
-            this.creep.pos,
+            pos,
             game.STRUCTURE_CONTAINER,
           );
         }

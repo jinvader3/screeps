@@ -127,6 +127,8 @@ module.exports.loop = function () {
     console.log(stat[0], stat[1]);
   });  
 
+  te.throw_out_dead_task_meta();
+
   Memory.cpuhis = Memory.cpuhis || [];
   Memory.cpuhis.push(Game.cpu.getUsed());
 

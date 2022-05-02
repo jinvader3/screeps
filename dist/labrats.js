@@ -654,12 +654,16 @@ class LabManager {
     //
 
     if (this.boosting) {
-      this.tick_equalize_onto_terminal(this.room.get_storage(), movers[0], this.term.term);
-      this.tick_boosting(task, creeps, labs, movers);  
+      logging.wrapper('boosting', () => {
+        this.tick_equalize_onto_terminal(this.room.get_storage(), movers[0], this.term.term);
+        this.tick_boosting(task, creeps, labs, movers);  
+      });
     } else {
-      // (2/4) look at the trade data and see what we can try to build
-      // (3/4) look at what we can sell and sell it
-      this.tick_trade(task, creeps, labs, movers);
+      logging.wrapper('production', () => {
+        // (2/4) look at the trade data and see what we can try to build
+        // (3/4) look at what we can sell and sell it
+        this.tick_trade(task, creeps, labs, movers);
+      });
     }
 
     // (4/4) let creeps ticks

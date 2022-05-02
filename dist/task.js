@@ -67,6 +67,7 @@ class Task {
     let tasks = this.get_tasks();
     let fname = this.get_full_name();
     tasks[fname] = tasks[fname] || {};
+    tasks[fname].ltick = game.time();
     tasks[fname].amount = amount;
   }
 
@@ -172,6 +173,25 @@ class TaskEngine {
       }
     }
     return errors;
+  }
+
+  throw_out_dead_task_meta () {
+    game.memory().tasks = game.memory().tasks || {};
+    const tasks = game.memory().tasks;
+    const ctick = game.time();
+    const tnames = [];
+
+    for (let tname in tasks) {
+      tnames.push(tname);
+    }
+
+    for (let tname of tnames) {
+      const meta = tasks[tname];
+      if (ctick - meta.ltick > 5) {
+        logging.debug('threw out dead task meta', tname);
+        delete tasks[tname];
+      }
+    }
   }
 }
 

@@ -9,11 +9,10 @@ class PowerMiner {
 
   entry (room, task) {
     const ecfg = room.ecfg;
-
-    notify.pull('power_bank_spotted', meta => {
+    //notify.pull('power_bank_spotted', meta => {
       // id
       // room_name 
-    });
+    //});
   }
 }
 

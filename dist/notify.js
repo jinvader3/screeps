@@ -28,16 +28,29 @@ module.exports = {
   pull: (topic, cb) => {
     Memory.evts = Memory.evts || [];
     const evts = Memory.evts;
+    const ctime = game.time();
+
     for (let x = 0; x < evts.length; ++x) {
-      const evt = evts[evts.length - 1]; 
+      const evt = evts[evts.length - 1];
+
       let ret = false;
 
-      if (evt.topic === topic) {
-        try {
-          ret = cb(evt.meta, evt.topic);
-        } catch (err) {
-          logging.log(`[error-event-cb] ${err}`);
-          logging.log(`${err.stack}`); 
+      // Events are valid only for one tick and it must
+      // be the next tick. This keeps them from bubbling
+      // up more than once and makes sure everyone who
+      // listens will hear the event happen.
+      if (ctime - evt.time === 1) {
+        if (evt.topic === topic) {
+          try {
+            ret = cb(evt.meta, evt.topic);
+          } catch (err) {
+            logging.log(`[error-event-cb] ${err}`);
+            logging.log(`${err.stack}`); 
+          }
+        }
+      } else {
+        if (evt.time === undefined || ctime - evt.time > 1) {
+          ret = true;
         }
       }
 
@@ -56,6 +69,6 @@ module.exports = {
     // pushing new events and simultanously making it safe
     // not to lose any events if anything errors out badly.
     logging.wrapper('notify-push', () => logging.info(`${topic} ${JSON.stringify(meta)}`));
-    evts.unshift({ topic: topic, meta: meta });
+    evts.unshift({ topic: topic, time: game.time(), meta: meta });
   },
 };
